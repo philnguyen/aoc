@@ -87,13 +87,16 @@ end Test
 abbrev SparseGrid := PersistentHashMap (Index 2)
 
 -----------------------------------------------------------------------
--- File reading
+-- IO and strings
 -----------------------------------------------------------------------
 
 partial
 def IO.FS.Stream.lines (str : IO.FS.Stream): IO (List String) := do
   let l ← str.getLine
   if l.length == 0 then return [] else do let ls ← str.lines; return l.trim :: ls
+
+def List.map_splitted_lines (f : List String → α) (lines : List String) (sep : String := " ") : List α :=
+  lines.map (λ l => f (l.splitOn sep))
 
 @[simp]
 def List.fold_line_groups (on_line : α → String → α) (a₀ : α)
@@ -185,49 +188,44 @@ inductive StepResult s :=
 | next : List s → StepResult s
 | success : StepResult s
 
-class Scheduler (q α : Type) where
-  empty : q
-  next : q → Option (α × q)
-  schedule : List α → q → q
+class Scheduler (q : Type → Type) where
+  empty : q α
+  next : q α → Option (α × q α)
+  schedule : List α → q α → q α
 
-structure GuardedScheduler (q α : Type) [beq : BEq α] [hashable : Hashable α] where
-  seen : ℘ α
-  queue : q
-
-instance : Scheduler (List α) α where
+instance : Scheduler List where
   empty := []
   next | [] => .none
        | x :: xs => .some (x, xs)
   schedule := List.append
 
-instance : Scheduler (Queue α) α where
+instance : Scheduler Queue where
   empty := Queue.empty
   next := Queue.next
   schedule xs q := xs.foldr .insert q
 
-instance [base : Scheduler q α] [BEq α] [Hashable α] : Scheduler (GuardedScheduler q α) α where
-  empty := ⟨.empty, base.empty⟩
-  next | ⟨seen, q⟩ => (base.next q).map λ ⟨x, q'⟩ => ⟨x, ⟨seen, q'⟩⟩
-  schedule | more, ⟨seen, q⟩ =>
-             let (more', seen') :=
-                 more.foldl (λ | acc@⟨more, seen⟩, x =>
-                                 if seen.contains x then acc else ⟨x :: more, seen.insert x⟩)
-                            ([], seen)
-             ⟨seen', base.schedule more' q⟩
-
 partial
-def search (step : s → StepResult s) (start : s) [queue : Scheduler q s] : Option s :=
-  let rec go (alts : q) : Option s :=
+def search (step : s → StepResult s) (start : s) [Scheduler q] [BEq s] [Hashable s] : Option s :=
+  let Cached s [BEq s] [Hashable s] := StateM (℘ s)
+  let rec go (alts : q s) : Cached s (Option s) :=
     match Scheduler.next alts with
-    | .none => .none
+    | .none => return .none
     | .some (s, alts') =>
-       match step s with
-       | .next ss => go (Scheduler.schedule ss alts')
-       | .success => .some s
-  go (queue.schedule [start] queue.empty)
+      match step s with
+      | .next ss => do
+        let (ss, seen) :=
+          ss.foldl (λ | acc@(ss, seen), s =>
+                       if seen.contains s then acc else (s :: ss, seen.insert s))
+                   ([], (← get))
+        set seen
+        go (Scheduler.schedule ss alts')
+      | .success => return (.some s)
+  go (Scheduler.schedule [start] Scheduler.empty)
+    |>.run (PersistentHashSet.empty.insert start)
+    |>.fst
 
-def search_dfs [BEq s] [Hashable s] := search (q := GuardedScheduler (List s) s) (s := s)
-def search_bfs [BEq s] [Hashable s] := search (q := GuardedScheduler (Queue s) s) (s := s)
+def search_dfs [BEq s] [Hashable s] := search (q := List) (s := s)
+def search_bfs [BEq s] [Hashable s] := search (q := Queue) (s := s)
 
 section Test
   example : ∃ q, .some (1, q) = Queue.next (.insert 3 (.insert 2 .(.insert 1 .empty)))
