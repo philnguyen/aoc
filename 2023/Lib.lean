@@ -158,8 +158,15 @@ end Test
 -- List
 -----------------------------------------------------------------------
 
-def List.sum [Add α] [OfNat α 0] := List.foldl Add.add 0
-def List.prod [Mul α] [OfNat α 1] := List.foldl Mul.mul 1
+def List.sum_by [Add α] [OfNat α 0] (f : x → α) := List.foldl (λ acc x => acc + f x) 0
+def List.sum [Add α] [OfNat α 0] := List.sum_by id
+def List.prod_by [Mul α] [OfNat α 1] (f : x → α) := List.foldl (λ acc x => acc * f x) 1
+def List.prod [Mul α] [OfNat α 1] := List.prod_by id
+
+section Test
+  example : [2, 3, 4].sum = 9 := rfl
+  example : [2, 3, 4].prod = 24 := rfl
+end Test
 
 -----------------------------------------------------------------------
 -- State search
