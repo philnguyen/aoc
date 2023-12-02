@@ -13,3 +13,7 @@ lean_exe P01 where
 @[default_target]
 lean_exe P02 where
   root := `P02
+
+@[default_target]
+lean_exe P03 where
+  root := `P03
