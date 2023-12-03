@@ -27,36 +27,36 @@ private def Index.beq : Index n → Index n → Bool :=
 
 instance : BEq (Index n) where beq := Index.beq
 
-def Vec.ref (default : t)  (vec : Vec n t) (i : Index n) : t :=
+def Vec.ref (vec : Vec n t) (i : Index n) : Option t :=
   match n with
   | 0 => vec
   | 1 => match i with
-         | .ofNat i => vec.getD i default
-         | .negSucc _ => default
+         | .ofNat i => vec.get? i
+         | .negSucc _ => .none
   | _ + 2 => let (i₀, i') := i
              match i₀ with
              | .ofNat i₀ => match vec.get? i₀ with
-               | .some vec' => vec'.ref default i'
-               | .none => default
-             | .negSucc _ => default
+               | .some vec' => vec'.ref i'
+               | .none => .none
+             | .negSucc _ => .none
 
 section Test
-  example : (8 : Vec 0 ℕ).ref 0 () = 8 := rfl
-  example : Vec.ref (n := 1) "" ["zero", "one", "two"] 0 = "zero" := rfl
-  example : Vec.ref (n := 2) "" [ ["zero", "one", "two"]
-                                , ["foo", "bar", "qux"]
-                                ]
-                                (1, 1) = "bar"
+  example : (8 : Vec 0 ℕ).ref () = .some 8 := rfl
+  example : Vec.ref (n := 1) ["zero", "one", "two"] 0 = "zero" := rfl
+  example : Vec.ref (n := 2) [ ["zero", "one", "two"]
+                             , ["foo", "bar", "qux"]
+                             ]
+                             (1, 1) = .some "bar"
     := rfl
-  example : Vec.ref (n := 2) "" [ ["zero", "one", "two"]
-                                , ["foo", "bar", "qux"]
-                                ]
-                                (3, 3) = ""
+  example : Vec.ref (n := 2) [ ["zero", "one", "two"]
+                             , ["foo", "bar", "qux"]
+                             ]
+                             (3, 3) = .none
     := rfl
-  example : Vec.ref (n := 2) "" [ ["zero", "one", "two"]
-                                , ["foo", "bar", "qux"]
-                                ]
-                                (-3, 3) = ""
+  example : Vec.ref (n := 2) [ ["zero", "one", "two"]
+                             , ["foo", "bar", "qux"]
+                             ]
+                             (-3, 3) = .none
     := rfl
 end Test
 
@@ -104,11 +104,18 @@ def Index.add (v₁ v₂ : Index n) : Index n :=
   | 1 => v₁ + v₂
   | _ + 2 => let ⟨n₁, v₁'⟩ := v₁
              let ⟨n₂, v₂'⟩ := v₂
-             ⟨n₁ + n₂, add v₁' v₂'⟩
+             ⟨n₁ + n₂, v₁'.add v₂'⟩
 
+def Index.sub (v₁ v₂ : Index n) : Index n :=
+  match n with
+  | 0 => ()
+  | 1 => v₁ - v₂
+  | _ + 2 => let ⟨n₁, v₁'⟩ := v₁
+             let ⟨n₂, v₂'⟩ := v₂
+             ⟨n₁ - n₂, v₁'.sub v₂'⟩
 
-instance : Add (Index n) where
-  add := Index.add
+instance : Add (Index n) where add := Index.add
+instance : Sub (Index n) where sub := Index.sub
 
 abbrev SparseGrid := PersistentHashMap (Index 2)
 
@@ -195,6 +202,17 @@ section Test
 end Test
 
 -----------------------------------------------------------------------
+-- Option
+-----------------------------------------------------------------------
+
+instance {α : Type u} {β : Type v} : OfNat (α → Option β) 0 where
+  ofNat _ := .none
+instance {α : Type u} {β : Type v} : Add (α → Option β) where
+  add f g := λ x => match f x with
+                    | y@(.some _) => y
+                    | .none => g x
+
+-----------------------------------------------------------------------
 -- List
 -----------------------------------------------------------------------
 
@@ -207,6 +225,22 @@ section Test
   example : [2, 3, 4].sum = 9 := rfl
   example : [2, 3, 4].prod = 24 := rfl
 end Test
+
+def List.is_prefix_of [BEq α] : List α → List α → Bool
+| [], _ => true
+| x :: xs, y :: ys => x == y && xs.is_prefix_of ys
+| _, _ => false
+
+section Test
+  example : [].is_prefix_of [1] = true := rfl
+  example : [1, 2].is_prefix_of [1, 2, 3, 4] = true := rfl
+  example : [1, 2].is_prefix_of [2, 3] = false := rfl
+  example : [1, 2].is_prefix_of [] = false := rfl
+end Test
+
+def List.last! [Inhabited α] : List α → α := head! ∘ reverse
+def List.last? : List α → Option α := head? ∘ reverse
+def List.lastD (xs : List α) (x : α) : α := xs.reverse.headD x
 
 -----------------------------------------------------------------------
 -- Set
@@ -238,6 +272,17 @@ infixl:70 " ∩ " => ℘.intersect
 
 def List.toSet [BEq α] [Hashable α] : List α → ℘ α := foldl .insert ⊘
 
+syntax "#{" term,* "}" : term
+macro_rules
+| `(#{}) => `(PersistentHashSet.empty)
+| `(#{$x:term}) => `(PersistentHashSet.insert .empty $x) -- TODO weird it's needed
+| `(#{ $x:term , $xs:term,* }) => `(PersistentHashSet.insert #{$xs,*} $x)
+
+section Test
+  example : (#{} : ℘ ℕ).size = 0 := rfl
+  #check #{"foo", "bar", "qux"}
+end Test
+
 -----------------------------------------------------------------------
 -- Map
 -----------------------------------------------------------------------
@@ -252,9 +297,21 @@ def Lean.PersistentHashMap.update [BEq α] [Hashable α] (k : α) (f : α → β
                    | .some v => v
                    | .none => v))
 
-
 def Lean.PersistentHashMap.filter [BEq α] [Hashable α] (p : α → β → Bool) (m : α ⊨> β) : α ⊨> β :=
   m.foldl (λ m k v => if p k v then m else m.erase k) m
+
+declare_syntax_cat kv
+syntax term " ↦ " term : kv
+syntax "#[|" kv,* "]" : term
+macro_rules
+| `(#[|]) => `(PersistentHashMap.empty)
+| `(#[| $k:term ↦ $v:term ]) => `(PersistentHashMap.insert .empty $k $v) -- TODO weird it's needed
+| `(#[| $k:term ↦ $v:term, $p:kv,* ]) => `(PersistentHashMap.insert #[| $p,* ] $k $v)
+
+section Test
+  example : (#[|] : ℕ ⊨> ℕ).size = 0 := rfl
+  #check (#[|"foo" ↦ 42, "bar" ↦ 44, "qux" ↦ 4])
+end Test
 
 -----------------------------------------------------------------------
 -- State search
