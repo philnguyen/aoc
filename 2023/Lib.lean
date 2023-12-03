@@ -246,7 +246,7 @@ def List.lastD (xs : List α) (x : α) : α := xs.reverse.headD x
 -- Set
 -----------------------------------------------------------------------
 
-abbrev ℘ (α : Type) [BEq α] [Hashable α] := PersistentHashSet α
+prefix:30 "℘" => PersistentHashSet
 
 syntax "#{" term,* "}" : term
 macro_rules
@@ -259,13 +259,13 @@ section Test
   #check #{"foo", "bar", "qux"}
 end Test
 
-def ℘.filter [BEq α] [Hashable α] (p : α → Bool) (s : ℘ α) : ℘ α :=
+def Lean.PersistentHashSet.filter [BEq α] [Hashable α] (p : α → Bool) (s : ℘ α) : ℘ α :=
   s.fold (λ s x => if p x then s else s.erase x) s
 
-def ℘.map [BEq α] [Hashable α] [BEq β] [Hashable β] (f : α → β) (s : ℘ α) : ℘ β :=
+def Lean.PersistentHashSet.map [BEq α] [Hashable α] [BEq β] [Hashable β] (f : α → β) (s : ℘ α) : ℘ β :=
   s.fold (λ s x => s.insert (f x)) #{}
 
-def ℘.filterMap [BEq α] [Hashable α] [BEq β] [Hashable β] (f : α → Option β) (s : ℘ α) : ℘ β :=
+def Lean.PersistentHashSet.filterMap [BEq α] [Hashable α] [BEq β] [Hashable β] (f : α → Option β) (s : ℘ α) : ℘ β :=
   s.fold (λ s x => match f x with
                    | .some y => s.insert y
                    | .none => s)
@@ -274,11 +274,11 @@ def ℘.filterMap [BEq α] [Hashable α] [BEq β] [Hashable β] (f : α → Opti
 def ℘.union [BEq α] [Hashable α] (s₁ s₂ : ℘ α) : ℘ α :=
   if s₁.size ≤ s₂.size then s₁.fold .insert s₂ else s₂.fold .insert s₁
 
-def ℘.intersect [BEq α] [Hashable α] (s₁ s₂ : ℘ α) : ℘ α :=
+def Lean.PersistentHashSet.intersect [BEq α] [Hashable α] (s₁ s₂ : ℘ α) : ℘ α :=
   if s₁.size ≤ s₂.size then s₁.filter s₂.contains else s₂.filter s₁.contains
 
-infixl:65 " ∪ " => ℘.union
-infixl:70 " ∩ " => ℘.intersect
+infixl:65 " ∪ " => PersistentHashSet.union
+infixl:70 " ∩ " => PersistentHashSet.intersect
 
 def List.toSet [BEq α] [Hashable α] : List α → ℘ α := foldl .insert #{}
 
