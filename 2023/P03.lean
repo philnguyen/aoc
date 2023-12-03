@@ -19,7 +19,7 @@ def q1 : IO Unit := do
     lines.fold_sparse_grid
       (λ c => if c == '.' || c.is_digit then .none else some ())
       (λ idxs idx _ => idx.adjacents.foldl .insert idxs)
-      ⊘
+      #{}
 
   let nums := lines.fold_nums (λ nums num idxs => if idxs.any symbol_ajacents.contains then num :: nums else nums) []
   IO.println s!"Nums are {nums},\n summing to {nums.sum}"
