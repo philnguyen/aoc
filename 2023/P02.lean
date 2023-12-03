@@ -40,8 +40,6 @@ def Game.parse (l : String) : Game :=
   | _ => panic "invalid"
 
 partial
-
-
 def CubeSet.power (s : CubeSet) : ℕ :=
   -- poor life choice lol
   let rec count_color (s : CubeSet) (color : Color) : ℕ :=
