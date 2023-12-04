@@ -173,23 +173,6 @@ def List.Stream.map_sparse_grid (cell : Char → Option α) : List String → Sp
 
 def List.map_grid (cell : Char → α) : List String → Vec 2 α := map (·.toList.map cell)
 
-section Test
-  example : ["123", "234", "345"].fold_char (λ | acc, i, '2' => i :: acc
-                                               | acc, _, _ => acc)
-                                            []
-          = [(1, 0), (0, 1)]
-    := rfl
-    
-  example : ["123", "234", "345"].map_grid (λ | '1' => 1
-                                              | '2' => 2
-                                              | '3' => 3
-                                              | '4' => 4
-                                              | '5' => 5
-                                              | _ => 0)
-          = [[1, 2, 3], [2, 3, 4], [3, 4, 5]]
-    := rfl
-end Test
-
 def Char.as_digit? (c : Char) : Option ℕ :=
   if '0' ≤ c && c ≤ '9' then c.toNat - '0'.toNat else .none
 
@@ -200,6 +183,18 @@ section Test
   example : '5'.as_digit? = .some 5 := rfl
   example : '9'.as_digit? = .some 9 := rfl
   example : 'a'.as_digit? = .none := rfl
+end Test
+
+section Test
+  example : ["123", "234", "345"].fold_char (λ | acc, i, '2' => i :: acc
+                                               | acc, _, _ => acc)
+                                            []
+          = [(1, 0), (0, 1)]
+    := rfl
+
+  example : ["123", "234", "345"].map_grid (·.as_digit?.getD 0)
+          = [[1, 2, 3], [2, 3, 4], [3, 4, 5]]
+    := rfl
 end Test
 
 -----------------------------------------------------------------------
