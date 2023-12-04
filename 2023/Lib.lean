@@ -257,7 +257,7 @@ macro_rules
 
 section Test
   example : (#{} : ℘ ℕ).size = 0 := rfl
-  #check #{"foo", "bar", "qux"}
+  example : #{"foo", "bar", "qux"}.size = 3 := rfl
 end Test
 
 def Lean.PersistentHashSet.filter [BEq α] [Hashable α] (p : α → Bool) (s : ℘ α) : ℘ α :=
@@ -325,7 +325,7 @@ macro_rules
 
 section Test
   example : (#[|] : ℕ ⊨> ℕ).size = 0 := rfl
-  #check (#[|"foo" ↦ 42, "bar" ↦ 44, "qux" ↦ 4])
+  example : #[|"foo" ↦ 42, "bar" ↦ 44, "qux" ↦ 4].size = 3 := rfl
 end Test
 
 -----------------------------------------------------------------------
