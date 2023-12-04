@@ -292,12 +292,17 @@ infixl:65 " ∪ " => PersistentHashSet.union
 infixl:70 " ∩ " => PersistentHashSet.intersect
 
 def List.toSet [BEq α] [Hashable α] : List α → ℘ α := foldl .insert #{}
+def Lean.PersistentHashSet.toList [BEq α] [Hashable α] (xs : ℘ α) : List α :=
+  xs.fold (λ acc x => x :: acc) []
 
 instance [BEq α] [Hashable α] : BEq (℘ α) where
   beq xs ys := xs.size == ys.size && xs.all ys.contains
 
 instance [BEq α] [Hashable α] : Hashable (℘ α) where
   hash xs := xs.sum_by hash
+
+instance [BEq α] [Hashable α] [ToString α] : ToString (℘ α) where
+  toString xs := "{" ++ xs.fold (λ acc x => acc ++ (if acc.length == 0 then "" else ", ") ++ s!"{x}") "" ++ "}"
 
 -----------------------------------------------------------------------
 -- Map
@@ -324,6 +329,9 @@ macro_rules
 | `(#[| $k:term ↦ $v:term ]) => `(PersistentHashMap.insert .empty $k $v) -- TODO weird it's needed
 | `(#[| $k:term ↦ $v:term, $p:kv,* ]) => `(PersistentHashMap.insert #[| $p,* ] $k $v)
 
+instance [BEq k] [Hashable k] [ToString k] [ToString v] : ToString (k ⊨> v) where
+  toString m := "[" ++ m.foldl (λ acc k v => acc ++ (if acc.length == 0 then "" else ", ") ++ s!"{k} ↦ {v}") "" ++ "]"
+
 section Test
   example : (#[|] : ℕ ⊨> ℕ).size = 0 := rfl
   example : #[|"foo" ↦ 42, "bar" ↦ 44, "qux" ↦ 4].size = 3 := rfl
@@ -344,6 +352,10 @@ def Lean.Parsec.int : Parsec ℤ :=
                 | m + 1 => .negSucc m) <|>
   (.ofNat <$> nat)
 
+def Lean.Parsec.skipSpace : Parsec Unit := Parsec.skipChar ' '
+postfix:max "¹⁺" => Parsec.many1
+postfix:max "⁰⁺" => Parsec.many
+
 partial
 def Lean.Parsec.sep_by (elem : Parsec α) (sep : Parsec β) : Parsec (List α) :=
   (Parsec.attempt $ do
@@ -360,6 +372,10 @@ def Lean.Parsec.alts (alts : List (String × α)) : Parsec α :=
   let fail := fail s!"None of {alts.map (λ ⟨s, _⟩ => s)} match"
   (alts.foldl (λ parse ⟨s, a⟩ => parse <|> (attempt $ do skipString s; pure a))
               fail) <|> fail
+
+def Lean.Parsec.run! [Inhabited α] (comp : Parsec α) (s : String) : α := match comp.run s with
+  | .ok a => a
+  | .error e => panic! e
 
 -----------------------------------------------------------------------
 -- State search
