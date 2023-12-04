@@ -215,11 +215,12 @@ instance {α : Type u} {β : Type v} : Add (α → Option β) where
 -----------------------------------------------------------------------
 -- List
 -----------------------------------------------------------------------
-
-def List.sum_by [Add α] [OfNat α 0] (f : x → α) := List.foldl (λ acc x => acc + f x) 0
-def List.sum [Add α] [OfNat α 0] := List.sum_by id
-def List.prod_by [Mul α] [OfNat α 1] (f : x → α) := List.foldl (λ acc x => acc * f x) 1
-def List.prod [Mul α] [OfNat α 1] := List.prod_by id
+def List.map_reduce (map : α → β) (reduce : β → β → β) (init : β) : List α → β :=
+  foldl (λ acc x => reduce acc (map x)) init
+def List.sum_by  [Add α] [OfNat α 0] (f : x → α) := map_reduce f Add.add 0
+def List.prod_by [Mul α] [OfNat α 1] (f : x → α) := map_reduce f Mul.mul 1
+def List.sum  [Add α] [OfNat α 0] := sum_by id
+def List.prod [Mul α] [OfNat α 1] := prod_by id
 
 section Test
   example : [2, 3, 4].sum = 9 := rfl
@@ -271,16 +272,31 @@ def Lean.PersistentHashSet.filterMap [BEq α] [Hashable α] [BEq β] [Hashable �
                    | .none => s)
          #{}
 
-def ℘.union [BEq α] [Hashable α] (s₁ s₂ : ℘ α) : ℘ α :=
+def Lean.PersistentHashSet.union [BEq α] [Hashable α] (s₁ s₂ : ℘ α) : ℘ α :=
   if s₁.size ≤ s₂.size then s₁.fold .insert s₂ else s₂.fold .insert s₁
 
 def Lean.PersistentHashSet.intersect [BEq α] [Hashable α] (s₁ s₂ : ℘ α) : ℘ α :=
   if s₁.size ≤ s₂.size then s₁.filter s₂.contains else s₂.filter s₁.contains
 
+def Lean.PersistentHashSet.map_reduce [BEq α] [Hashable α] (map : α → β) (reduce : β → β → β) (init : β) : ℘ α → β :=
+  fold (λ acc x => reduce acc (map x)) init
+def Lean.PersistentHashSet.sum_by  [BEq α] [Hashable α] [Add σ] [OfNat σ 0] (f : α → σ) := map_reduce f Add.add 0
+def Lean.PersistentHashSet.prod_by [BEq α] [Hashable α] [Mul π] [OfNat π 1] (f : α → π) := map_reduce f Mul.mul 1
+def Lean.PersistentHashSet.sum  [BEq α] [Hashable α] [Add α] [OfNat α 0] := sum_by id
+def Lean.PersistentHashSet.prod [BEq α] [Hashable α] [Mul α] [OfNat α 1] := prod_by id
+def Lean.PersistentHashSet.all [BEq α] [Hashable α] (p : α → Bool) := map_reduce p (· && ·) true
+def Lean.PersistentHashSet.any [BEq α] [Hashable α] (p : α → Bool) := map_reduce p (· || ·) false
+
 infixl:65 " ∪ " => PersistentHashSet.union
 infixl:70 " ∩ " => PersistentHashSet.intersect
 
 def List.toSet [BEq α] [Hashable α] : List α → ℘ α := foldl .insert #{}
+
+instance [BEq α] [Hashable α] : BEq (℘ α) where
+  beq xs ys := xs.size == ys.size && xs.all ys.contains
+
+instance [BEq α] [Hashable α] : Hashable (℘ α) where
+  hash xs := xs.sum_by hash
 
 -----------------------------------------------------------------------
 -- Map
