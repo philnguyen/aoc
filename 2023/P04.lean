@@ -13,13 +13,10 @@ instance : ToString Card where
   toString | ⟨id, winnings, haves⟩ => s!"{id}: {winnings} | {haves}"
 
 def Card.parse : Parsec Card := do
-  let read_num_list : Parsec (List ℕ) := Parsec.sep_by Parsec.nat Parsec.skipSpace¹⁺
-  Parsec.skipString "Card"; let _ ← Parsec.skipSpace¹⁺
-  let id ← Parsec.nat
-  let _ ← Parsec.skipSpace⁰⁺; Parsec.skipString ":"; let _ ← Parsec.skipSpace¹⁺
-  let wins ← read_num_list
-  let _ ← Parsec.skipSpace⁰⁺; Parsec.skipString "|"; let _ ← Parsec.skipSpace¹⁺
-  let haves ← read_num_list
+  let read_num_list : Parsec (List ℕ) := Parsec.sep_by Parsec.nat Parsec.skip_space¹⁺
+  Parsec.skip_word "Card"; let id ← Parsec.nat
+  Parsec.skip_word ":"   ; let wins ← read_num_list
+  Parsec.skip_word "|"   ; let haves ← read_num_list
   return ⟨id, wins.toSet, haves.toSet⟩
 
 def Card.score : Card → ℕ
