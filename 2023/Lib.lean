@@ -1,5 +1,6 @@
 import Lean.Data.PersistentHashMap
 import Lean.Data.PersistentHashSet
+import Lean.Data.Parsec
 
 open Lean
 
@@ -327,6 +328,38 @@ section Test
   example : (#[|] : ℕ ⊨> ℕ).size = 0 := rfl
   example : #[|"foo" ↦ 42, "bar" ↦ 44, "qux" ↦ 4].size = 3 := rfl
 end Test
+
+-----------------------------------------------------------------------
+-- Parsing
+-----------------------------------------------------------------------
+
+def Lean.Parsec.nat : Parsec ℕ := do
+  let digits ← Parsec.many1 Parsec.digit
+  return digits.foldl (λ acc d => acc * 10 + d.as_digit?.get!) 0
+
+def Lean.Parsec.int : Parsec ℤ :=
+  (attempt $ do skipChar '-'
+                return match (← nat) with
+                | 0 => 0
+                | m + 1 => .negSucc m) <|>
+  (.ofNat <$> nat)
+
+partial
+def Lean.Parsec.sep_by (elem : Parsec α) (sep : Parsec β) : Parsec (List α) :=
+  (Parsec.attempt $ do
+      let a ← elem
+      let _ ← sep
+      let as ← sep_by elem sep
+      return a :: as) <|>
+  (Parsec.attempt $ do
+      let a ← elem
+      return [a]) <|>
+  (pure [])
+
+def Lean.Parsec.alts (alts : List (String × α)) : Parsec α :=
+  let fail := fail s!"None of {alts.map (λ ⟨s, _⟩ => s)} match"
+  (alts.foldl (λ parse ⟨s, a⟩ => parse <|> (attempt $ do skipString s; pure a))
+              fail) <|> fail
 
 -----------------------------------------------------------------------
 -- State search

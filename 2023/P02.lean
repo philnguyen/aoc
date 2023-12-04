@@ -1,4 +1,5 @@
 import Lib
+open Lean
 
 abbrev CubeSet := ℕ
 
@@ -21,23 +22,20 @@ instance : ToString Game where
 
 def Game.is_possible (g : Game) (s : CubeSet) : Bool := g.sets.all (s % · == 0)
 
-def Game.parse (l : String) : Game :=
-  let parse_color : String → Color
-      | "red" => .red
-      | "green" => .green
-      | "blue" => .blue
-      | s => panic s!"invalid color {s}"
-  let parse_count (str : String) : (Color × ℕ) := match str.trim.splitOn " " with
-      | [count, color] => (parse_color color, count.toNat!)
-      | _ => panic s!"invalid count string {str}"
-  let parse_cube_set (str : String) : CubeSet := cube_set $ (str.trim.splitOn ",").map parse_count
-  match l.splitOn ":" with
-  | [game, rest] =>
-    match game.trim.splitOn " " with
-    | [_, id] => Game.mk id.toNat! (rest |>.splitOn ";"
-                                         |>.map parse_cube_set)
-    | _ => panic "invalid"
-  | _ => panic "invalid"
+def Game.parse : Parsec Game :=
+  let id : Parsec ℕ := do
+    Parsec.skipString "Game "
+    let id ← Parsec.nat
+    Parsec.skipString ": "
+    return id
+  let component : Parsec (Color × ℕ) := do
+    let count ← Parsec.nat
+    Parsec.skipChar ' '
+    let color ← Parsec.alts [("red", .red), ("green", .green), ("blue", .blue)]
+    return (color, count)
+  let cubeSet : Parsec CubeSet := cube_set <$> Parsec.sep_by component (Parsec.skipString ", ")
+  let cubeSets : Parsec (List CubeSet) := Parsec.sep_by cubeSet (Parsec.skipString "; ")
+  Game.mk <$> id <*> cubeSets
 
 partial
 def CubeSet.power (s : CubeSet) : ℕ :=
@@ -48,7 +46,9 @@ def CubeSet.power (s : CubeSet) : ℕ :=
 
 def read_games : IO (List Game) := do
   let lines ← (← IO.getStdin).lines
-  return lines.map Game.parse
+  return lines.map (λ l => match Game.parse.run l with
+                           | .ok game => game
+                           | .error e => panic! e)
 
 def q1 : IO Unit := do
   let games ← read_games
@@ -65,4 +65,4 @@ def q2 : IO Unit := do
   IO.println s!"The powers are {powers}"
   IO.println s!"Their sum is {sum}"
 
-def main : IO Unit := q1
+def main : IO Unit := q2
