@@ -498,3 +498,21 @@ def UnionFind.union [Monad m] [BEq α] [Hashable α] (x y : α) : (UnionFindT α
 instance [Monad m] [BEq α] [Hashable α] : MonadUnionFind α (UnionFindT α m) where
   union := UnionFind.union
   find := UnionFind.find
+
+-----------------------------------------------------------------------
+-- Memoization
+-----------------------------------------------------------------------
+
+abbrev MemoT (k : Type u) (v : Type w) [BEq k] [Hashable k] := StateT (k ⊨> v)
+
+class MonadMemo (k v : outParam Type) (m : Type → Type) where
+  run_memoized : k → m v → m v
+
+instance [Monad m] [BEq k] [Hashable k] : MonadMemo k v (MemoT k v m) where
+  run_memoized key comp := do
+    let memo ← get
+    match memo.find? key with
+    | .some v => return v
+    | .none => let v ← comp
+               modify (·.insert key v)
+               return v
