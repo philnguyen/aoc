@@ -233,13 +233,13 @@ def real : Input where
      (2486274802, 4162599840, 35752676),
      (3596423501, 4198352516, 96614780)]
 
-def eval_map : Mapping → ℤ → Option ℤ
+def Mapping.eval : Mapping → ℤ → Option ℤ
 | (target, source, range), s => if source ≤ s && s < source + range
                                  then .some (target + s - source)
                                  else .none
 
 def compose_maps (maps : Mappings) (n : ℤ) : ℤ :=
-  let full := maps |>.map eval_map |>.sum
+  let full := maps |>.map Mapping.eval |>.sum
   (full n).getD n
 
 abbrev Range := ℤ × ℤ
@@ -251,38 +251,38 @@ def List.ranges : List ℤ → List Range
 | _ => []
 
 -- Return ("converted" × "residual")
-def map_range (target_lo : ℤ) (source_lo : ℤ) (range : ℤ) : Range → List Range × List Range
-| r@⟨lo, hi⟩ => let source_hi := source_lo + range - 1
-                let target_hi := target_lo + range - 1
-                -- `r` outside source
-                if hi < source_lo || source_hi < lo then ([] , [r])
-                -- `r` contains source
-                else if lo <= source_lo && source_hi <= hi then
-                     ([(target_lo, target_hi)],
-                      [(lo, source_lo - 1), (source_hi + 1, hi)])
-                -- `r` cuts source left
-                else if lo ≤ source_lo && source_lo ≤ hi && hi ≤ source_hi then
-                     ([(target_lo, target_lo + (hi - source_lo))], [(lo, source_lo - 1)])
-                -- `r` cuts source right
-                else if source_lo ≤ lo && lo ≤ source_hi && source_hi ≤ hi then
-                     ([(target_lo + (lo - source_lo), target_hi)], [(source_hi + 1, hi)])
-                -- source contains `r`
-                else if source_lo ≤ lo && hi ≤ source_hi then
-                     ([(target_lo + (lo - source_lo), (target_lo + (hi - source_lo)))], [])
-                else panic! s!"Unhandled: {target_lo} {source_lo} {range} on {r}"
+def Mapping.eval_on_range : Mapping → Range → List Range × List Range
+| m@(target_lo, source_lo, range), r@⟨lo, hi⟩ =>
+  let source_hi := source_lo + range - 1
+  let target_hi := target_lo + range - 1
+  let map x := (m.eval x).get!
+  -- `r` outside source
+  if hi < source_lo || source_hi < lo then ([] , [r])
+  -- `r` contains source
+  else if lo <= source_lo && source_hi <= hi then
+       ([(target_lo, target_hi)], [(lo, source_lo - 1), (source_hi + 1, hi)])
+  -- `r` cuts source left
+  else if lo ≤ source_lo && source_lo ≤ hi && hi ≤ source_hi then
+       ([(target_lo, map hi)], [(lo, source_lo - 1)])
+  -- `r` cuts source right
+  else if source_lo ≤ lo && lo ≤ source_hi && source_hi ≤ hi then
+       ([(map lo, target_hi)], [(source_hi + 1, hi)])
+  -- source contains `r`
+  else if source_lo ≤ lo && hi ≤ source_hi then
+       ([(map lo, map hi)], [])
+  else panic! s!"Unhandled: {target_lo} {source_lo} {range} on {r}"
 
 def q1 (input : Input): IO Unit := do
-  let results := input.steps
-                   |>.map compose_maps
-                   |>.foldl (·.map ·) input.seeds
+  let results := input.steps |>.map compose_maps
+                             |>.foldl (·.map ·) input.seeds
   IO.println s!"Results are {results}"
   IO.println s!"Min is {results.min}"
 
 def q2 (input : Input) : IO Unit := do
   let translate_step : List Range → Mapping → List Range × List Range
-    | ranges, (target, source, range) =>
+    | ranges, mapping =>
       ranges.foldl (λ | ⟨trans, ris⟩, r =>
-                        let ⟨trans', ris'⟩ := map_range target source range r
+                        let ⟨trans', ris'⟩ := mapping.eval_on_range r
                         ⟨trans'.filter Range.is_valid ++ trans, ris'.filter Range.is_valid ++ ris⟩)
                    ([], [])
   let translate_kind : List Range → Mappings → List Range
@@ -295,7 +295,6 @@ def q2 (input : Input) : IO Unit := do
   let results := input.steps.foldl translate_kind input.seeds.ranges
   IO.println s!"Results are {results}"
   IO.println s!"Min is {(results.map Prod.fst).min}"
-
 
 def main : IO Unit := do
   IO.println "q1 sample:"; q1 sample
