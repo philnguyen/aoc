@@ -354,15 +354,7 @@ def Lean.Parsec.int : Parsec ℤ :=
                 | m + 1 => .negSucc m) <|>
   (.ofNat <$> nat)
 
-def Lean.Parsec.skip_space : Parsec Unit := Parsec.skipChar ' '
-postfix:max "¹⁺" => Parsec.many1
-postfix:max "⁰⁺" => Parsec.many
-
-def Lean.Parsec.skip_word (s : String): Parsec Unit := do
-  let _ ← skip_space⁰⁺
-  skipString s
-  let _ ← skip_space⁰⁺
-  return ()
+def Lean.Parsec.skip_word (s : String): Parsec Unit := ws *> skipString s *> ws
 
 partial
 def Lean.Parsec.sep_by (elem : Parsec α) (sep : Parsec β) : Parsec (List α) :=

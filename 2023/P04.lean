@@ -13,7 +13,7 @@ instance : ToString Card where
   toString | ⟨id, winnings, haves⟩ => s!"{id}: {winnings} | {haves}"
 
 def Card.parse : Parsec Card := do
-  let read_num_list : Parsec (List ℕ) := Parsec.sep_by Parsec.nat Parsec.skip_space¹⁺
+  let read_num_list : Parsec (List ℕ) := Array.toList <$> Parsec.many (Parsec.nat <* Parsec.ws)
   Parsec.skip_word "Card"; let id ← Parsec.nat
   Parsec.skip_word ":"   ; let wins ← read_num_list
   Parsec.skip_word "|"   ; let haves ← read_num_list
