@@ -215,8 +215,8 @@ def List.map_reduce (map : α → β) (reduce : β → β → β) (init : β) : 
   foldl (λ acc x => reduce acc (map x)) init
 def List.sum_by  [Add α] [OfNat α 0] (f : x → α) := map_reduce f Add.add 0
 def List.prod_by [Mul α] [OfNat α 1] (f : x → α) := map_reduce f Mul.mul 1
-def List.sum  [Add α] [OfNat α 0] := sum_by id
-def List.prod [Mul α] [OfNat α 1] := prod_by id
+def List.sum  [Add α] [OfNat α 0] : List α → α := sum_by id
+def List.prod [Mul α] [OfNat α 1] : List α → α := prod_by id
 
 section Test
   example : [2, 3, 4].sum = 9 := rfl
@@ -238,6 +238,13 @@ end Test
 def List.last! [Inhabited α] : List α → α := head! ∘ reverse
 def List.last? : List α → Option α := head? ∘ reverse
 def List.lastD (xs : List α) (x : α) : α := xs.reverse.headD x
+
+def List.reduce (op : α → α → α) : List α → Option α
+| [] => .none
+| x :: xs => .some (xs.foldl op x)
+
+def List.min [Min α] (xs : List α) := xs.reduce Min.min
+def List.max [Max α] (xs : List α) := xs.reduce Max.max
 
 -----------------------------------------------------------------------
 -- Set
@@ -278,8 +285,8 @@ def Lean.PersistentHashSet.map_reduce [BEq α] [Hashable α] (map : α → β) (
   fold (λ acc x => reduce acc (map x)) init
 def Lean.PersistentHashSet.sum_by  [BEq α] [Hashable α] [Add σ] [OfNat σ 0] (f : α → σ) := map_reduce f Add.add 0
 def Lean.PersistentHashSet.prod_by [BEq α] [Hashable α] [Mul π] [OfNat π 1] (f : α → π) := map_reduce f Mul.mul 1
-def Lean.PersistentHashSet.sum  [BEq α] [Hashable α] [Add α] [OfNat α 0] := sum_by id
-def Lean.PersistentHashSet.prod [BEq α] [Hashable α] [Mul α] [OfNat α 1] := prod_by id
+def Lean.PersistentHashSet.sum  [BEq α] [Hashable α] [Add α] [OfNat α 0] : ℘ α → α := sum_by id
+def Lean.PersistentHashSet.prod [BEq α] [Hashable α] [Mul α] [OfNat α 1] : ℘ α → α := prod_by id
 def Lean.PersistentHashSet.all [BEq α] [Hashable α] (p : α → Bool) := map_reduce p (· && ·) true
 def Lean.PersistentHashSet.any [BEq α] [Hashable α] (p : α → Bool) := map_reduce p (· || ·) false
 

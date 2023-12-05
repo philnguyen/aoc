@@ -17,3 +17,6 @@ lean_exe P03 where root := `P03
 
 @[default_target]
 lean_exe P04 where root := `P04
+
+@[default_target]
+lean_exe P05 where root := `P05
