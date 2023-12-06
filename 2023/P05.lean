@@ -1,10 +1,10 @@
 import Lib
 
-abbrev Mapping := ℤ × ℤ × ℤ
+abbrev Mapping := ℕ × ℕ × ℕ
 abbrev Mappings := List Mapping
 
 structure Input where
-  seeds : List ℤ
+  seeds : List ℕ
   seed_to_soil : Mappings
   soil_to_fertilizer : Mappings
   fertilizer_to_water : Mappings
@@ -233,20 +233,20 @@ def real : Input where
      (2486274802, 4162599840, 35752676),
      (3596423501, 4198352516, 96614780)]
 
-def Mapping.eval : Mapping → ℤ → Option ℤ
+def Mapping.eval : Mapping → ℕ → Option ℕ
 | (target, source, range), s => if source ≤ s && s < source + range
                                  then .some (target + s - source)
                                  else .none
 
-def compose_maps (maps : Mappings) (n : ℤ) : ℤ :=
+def compose_maps (maps : Mappings) (n : ℕ) : ℕ :=
   let full := maps |>.map Mapping.eval |>.sum
   (full n).getD n
 
-abbrev Range := ℤ × ℤ
+abbrev Range := ℕ × ℕ
 
 def Range.is_valid : Range → Bool | ⟨lo, hi⟩ => lo < hi
 
-def List.ranges : List ℤ → List Range
+def List.ranges : List ℕ → List Range
 | lo :: d :: ns => (lo, lo + d - 1) :: ns.ranges
 | _ => []
 
