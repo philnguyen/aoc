@@ -13,7 +13,7 @@ def count_beating_ways : Race → ℕ
   let traveled (hold : ℕ) : ℕ := hold * (time - hold)
   time.count_by (traveled · > distance_to_beat)
 
-def prod_beating_ways (races : Input) : ℕ := races.prod_by count_beating_ways
+def prod_beating_ways : Input → ℕ := List.prod_by count_beating_ways
 
 def main : IO Unit := do
   IO.println s!"Q1 on sample: {prod_beating_ways sample}"
