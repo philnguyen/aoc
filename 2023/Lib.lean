@@ -516,3 +516,50 @@ instance [Monad m] [BEq k] [Hashable k] : MonadMemo k v (MemoT k v m) where
     | .none => let v ← comp
                modify (·.insert key v)
                return v
+
+-----------------------------------------------------------------------
+-- Priority Queue
+-----------------------------------------------------------------------
+
+-- Leftist heap from Okasaki
+
+inductive Heap (α : Type) :=
+| empty : Heap α
+| tree : ℕ → α → Heap α → Heap α → Heap α
+
+private def Heap.toString [ToString α] : Heap α → String
+| .empty => "[]"
+| .tree _ x l r => s!"{x} ∷ {toString l} ∷ {toString r}"
+
+instance [ToString α] : ToString (Heap α) where
+  toString := Heap.toString
+
+private def Heap.rank : Heap α → ℕ
+| .empty => 0
+| .tree r _ _ _ => r
+
+private def Heap.mk_tree (x : α) (a b : Heap α) : Heap α :=
+  if rank a ≥ rank b
+    then .tree (rank b + 1) x a b
+    else .tree (rank a + 1) x b a
+
+partial -- TODO
+def Heap.merge [Ord α] : Heap α → Heap α → Heap α
+| h, .empty
+| .empty, h => h
+| h₁@(.tree _ x a₁ b₁), h₂@(.tree _ y a₂ b₂) =>
+  match Ord.compare x y with
+  | .lt | .eq => mk_tree x a₁ (merge b₁ h₂)
+  | _ => mk_tree y a₂ (merge h₁ b₂)
+
+def Heap.insert [Ord α] (x : α) (h : Heap α) := merge (.tree 1 x .empty .empty) h
+
+def Heap.min? : Heap α → Option α
+| .empty => .none
+| .tree _ x _ _ => .some x
+
+def Heap.min_popped? [Ord α] : Heap α → Option (Heap α)
+| .empty => .none
+| .tree _ _ a b => merge a b
+
+def Heap.from_list [Ord α] : List α → Heap α := List.foldl (·.insert ·) .empty
