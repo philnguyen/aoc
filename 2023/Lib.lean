@@ -569,13 +569,9 @@ def Heap.merge [Ord α] : Heap α → Heap α → Heap α
 
 def Heap.insert [Ord α] (x : α) (h : Heap α) := merge (.tree 1 x .empty .empty) h
 
-def Heap.min? : Heap α → Option α
+def Heap.min? [Ord α] : Heap α → Option (α × Heap α)
 | .empty => .none
-| .tree _ x _ _ => .some x
-
-def Heap.min_popped? [Ord α] : Heap α → Option (Heap α)
-| .empty => .none
-| .tree _ _ a b => merge a b
+| .tree _ x a b => .some (x, merge a b)
 
 def Heap.from_list [Ord α] : List α → Heap α := List.foldl (·.insert ·) .empty
 
