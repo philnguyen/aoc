@@ -8,6 +8,17 @@ abbrev ℕ := Nat
 abbrev ℤ := Int
 
 -----------------------------------------------------------------------
+-- Numbers and counting
+-----------------------------------------------------------------------
+
+def Nat.count_by (p : ℕ → Bool) (n : ℕ) : ℕ :=
+  n.foldRev (λ i count => if p i then count + 1 else count) 0
+
+section Test
+  example : Nat.count_by (· % 2 == 0) 7 = 4 := rfl
+end Test
+
+-----------------------------------------------------------------------
 -- Vectors and Matrices
 -----------------------------------------------------------------------
 
@@ -218,9 +229,13 @@ def List.prod_by [Mul α] [OfNat α 1] (f : x → α) := map_reduce f Mul.mul 1
 def List.sum  [Add α] [OfNat α 0] : List α → α := sum_by id
 def List.prod [Mul α] [OfNat α 1] : List α → α := prod_by id
 
+def List.count_by (p : α → Bool) (xs : List α) : ℕ :=
+  xs.foldl (λ count x => if p x then count + 1 else count) 0
+
 section Test
   example : [2, 3, 4].sum = 9 := rfl
   example : [2, 3, 4].prod = 24 := rfl
+  example : [1, 2, 3, 4, 5].count_by (· % 2 == 0) = 2 := rfl
 end Test
 
 def List.is_prefix_of [BEq α] : List α → List α → Bool
@@ -563,3 +578,19 @@ def Heap.min_popped? [Ord α] : Heap α → Option (Heap α)
 | .tree _ _ a b => merge a b
 
 def Heap.from_list [Ord α] : List α → Heap α := List.foldl (·.insert ·) .empty
+
+-----------------------------------------------------------------------
+-- Binary search
+-----------------------------------------------------------------------
+
+partial -- TODO
+def binary_search [Ord α] (f : ℕ → α) (target : α) (lo_incl hi_incl : ℕ) : Option (ℕ × α) :=
+  let rec loop (lo_incl hi_incl : ℕ) : Option (ℕ × α) :=
+    if lo_incl > hi_incl then .none
+    else let m := (lo_incl + hi_incl) / 2
+         let fm := f m
+         match Ord.compare target fm with
+         | .lt => loop lo_incl (m - 1)
+         | .gt => loop (m + 1) hi_incl
+         | .eq => .some (m, fm)
+  loop lo_incl hi_incl
