@@ -38,26 +38,26 @@ def optimize_jokers (ranks : List Rank) : Rank ⊨> ℕ :=
       else subst_joker (acc.insert c 5) cs (n_jokers - (5 - n))
   subst_joker normal_count normal_count.toList.sorted.reverse jokers.length
 
-def String.toRanks (s : String) : List Rank :=
-  s.toList.map (λ | '2' => Rank.n2
-                  | '3' => .n3
-                  | '4' => .n4
-                  | '5' => .n5
-                  | '6' => .n6
-                  | '7' => .n7
-                  | '8' => .n8
-                  | '9' => .n9
-                  | 'T' => .t
-                  | 'J' => .j
-                  | 'Q' => .q
-                  | 'K' => .k
-                  | 'A' => .a
-                  | c => panic! s!"unknown rank {c}")
+def Char.toRank : Char → Rank
+| '2' => Rank.n2
+| '3' => .n3
+| '4' => .n4
+| '5' => .n5
+| '6' => .n6
+| '7' => .n7
+| '8' => .n8
+| '9' => .n9
+| 'T' => .t
+| 'J' => .j
+| 'Q' => .q
+| 'K' => .k
+| 'A' => .a
+| c => panic! s!"unknown rank {c}"
 
 def with_processing (count_up : List Rank → Rank ⊨> ℕ) (massage : List Rank → List Rank) : IO Unit := do
   let ranked_hands := (← stdin_lines).map (λ l => match l.splitOn " " with
                                                   | [hand, bid] =>
-                                                    let ranks := hand.toRanks
+                                                    let ranks := hand.toList.map Char.toRank
                                                     (classify_ranks (count_up ranks), massage ranks, bid.toNat!)
                                                   | _ => panic! s!"hand {l}")
   let sorted_hands := ranked_hands.sorted
