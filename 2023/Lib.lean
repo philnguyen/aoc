@@ -8,15 +8,36 @@ abbrev ℕ := Nat
 abbrev ℤ := Int
 
 -----------------------------------------------------------------------
--- Numbers and counting
+-- Debugging
 -----------------------------------------------------------------------
 
-def Nat.count_by (p : ℕ → Bool) (n : ℕ) : ℕ :=
-  n.foldRev (λ i count => if p i then count + 1 else count) 0
+macro "derive_ToString" t:term : command =>
+  `(instance : ToString $t where toString := Std.Format.pretty ∘ repr)
 
-section Test
-  example : Nat.count_by (· % 2 == 0) 7 = 4 := rfl
-end Test
+-----------------------------------------------------------------------
+-- Ordering
+-----------------------------------------------------------------------
+
+private inductive Ordered (s : Type) where
+| mk : [Ord t] → (s → t) → Ordered s
+
+private def compare_by {s : Type} : List (Ordered s) → s → s → Ordering
+| [], _, _ => .eq
+| Ordered.mk prop :: props, s₁, s₂ =>
+  match compare (prop s₁) (prop s₂) with
+  | .eq => compare_by props s₁ s₂
+  | o => o
+
+macro "derive_Ord" t:term "by" os:term,* : command =>
+  `(instance : Ord $t where compare := compare_by [$[Ordered.mk $os],*])
+
+def List.lexi_compare [Ord α] : List α → List α → Ordering
+| x :: xs, y :: ys => match compare x y with
+                      | .eq => xs.lexi_compare ys
+                      | o => o
+| [], _ :: _ => .lt
+| _ :: _, [] => .gt
+| [], [] => .eq
 
 -----------------------------------------------------------------------
 -- Vectors and Matrices
@@ -232,23 +253,10 @@ def List.prod [Mul α] [OfNat α 1] : List α → α := prod_by id
 def List.count_by (p : α → Bool) (xs : List α) : ℕ :=
   xs.foldl (λ count x => if p x then count + 1 else count) 0
 
-section Test
-  example : [2, 3, 4].sum = 9 := rfl
-  example : [2, 3, 4].prod = 24 := rfl
-  example : [1, 2, 3, 4, 5].count_by (· % 2 == 0) = 2 := rfl
-end Test
-
 def List.is_prefix_of [BEq α] : List α → List α → Bool
 | [], _ => true
 | x :: xs, y :: ys => x == y && xs.is_prefix_of ys
 | _, _ => false
-
-section Test
-  example : [].is_prefix_of [1] = true := rfl
-  example : [1, 2].is_prefix_of [1, 2, 3, 4] = true := rfl
-  example : [1, 2].is_prefix_of [2, 3] = false := rfl
-  example : [1, 2].is_prefix_of [] = false := rfl
-end Test
 
 def List.last! [Inhabited α] : List α → α := head! ∘ reverse
 def List.last? : List α → Option α := head? ∘ reverse
@@ -260,6 +268,48 @@ def List.reduce (op : α → α → α) : List α → Option α
 
 def List.min [Min α] (xs : List α) := xs.reduce Min.min
 def List.max [Max α] (xs : List α) := xs.reduce Max.max
+
+def List.replace_all [BEq α] (a b : α) : List α → List α
+| a₁ :: as => (if a == a₁ then b else a₁) :: replace_all a b as
+| [] => []
+
+partial -- TODO
+def List.sorted_by (prec : α → α → Bool) (xs : List α) : List α :=
+  let rec split : List α → List α × List α
+    | [] => ([], [])
+    | x :: xs => let (l, r) := split xs
+                 (x :: r, l)
+  let rec merge : List α → List α → List α
+    | x :: xs, y :: ys => if prec x y then x :: merge xs (y :: ys) else y :: merge (x :: xs) ys
+    | xs, [] => xs
+    | [], ys => ys
+  let rec loop (l : List α) : List α :=
+    match l with
+    | [] | [_] => l
+    | _ => let (l₁, l₂) := split l
+           merge (loop l₁) (loop l₂)
+  loop xs
+
+def List.sorted [Ord α] : List α → List α :=
+  List.sorted_by (match compare · · with
+                  | .lt | .eq => true
+                  | .gt => false)
+
+def List.foldl_with_index (f : β → α → ℕ → β) (acc : β) (xs : List α) : β :=
+  (xs.foldl (λ | ⟨ac, i⟩, x => (f ac x i, i + 1)) (acc, 0)).fst
+
+section Test
+  example : [2, 3, 4].sum = 9 := rfl
+  example : [2, 3, 4].prod = 24 := rfl
+  example : [1, 2, 3, 4, 5].count_by (· % 2 == 0) = 2 := rfl
+
+  example : [].is_prefix_of [1] = true := rfl
+  example : [1, 2].is_prefix_of [1, 2, 3, 4] = true := rfl
+  example : [1, 2].is_prefix_of [2, 3] = false := rfl
+  example : [1, 2].is_prefix_of [] = false := rfl
+
+  example : [1, 2, 3, 2, 1].replace_all 2 5 = [1, 5, 3, 5, 1] := rfl
+end Test
 
 -----------------------------------------------------------------------
 -- Set
@@ -352,6 +402,20 @@ instance [BEq k] [Hashable k] [ToString k] [ToString v] : ToString (k ⊨> v) wh
 section Test
   example : (#[|] : ℕ ⊨> ℕ).size = 0 := rfl
   example : #[|"foo" ↦ 42, "bar" ↦ 44, "qux" ↦ 4].size = 3 := rfl
+end Test
+
+-----------------------------------------------------------------------
+-- Numbers and counting
+-----------------------------------------------------------------------
+
+def Nat.count_by (p : ℕ → Bool) (n : ℕ) : ℕ :=
+  n.foldRev (λ i count => if p i then count + 1 else count) 0
+
+def List.tally [BEq α] [Hashable α] (xs : List α) : α ⊨> ℕ :=
+  xs.foldl (λ m x => m.insert x (1 + m.findD x 0)) #[|]
+
+section Test
+  example : Nat.count_by (· % 2 == 0) 7 = 4 := rfl
 end Test
 
 -----------------------------------------------------------------------
@@ -563,7 +627,7 @@ def Heap.merge [Ord α] : Heap α → Heap α → Heap α
 | h, .empty
 | .empty, h => h
 | h₁@(.tree _ x a₁ b₁), h₂@(.tree _ y a₂ b₂) =>
-  match Ord.compare x y with
+  match compare x y with
   | .lt | .eq => mk_tree x a₁ (merge b₁ h₂)
   | _ => mk_tree y a₂ (merge h₁ b₂)
 
@@ -585,7 +649,7 @@ def binary_search [Ord α] (f : ℕ → α) (target : α) (lo_incl hi_incl : ℕ
     if lo_incl > hi_incl then .none
     else let m := (lo_incl + hi_incl) / 2
          let fm := f m
-         match Ord.compare target fm with
+         match compare target fm with
          | .lt => loop lo_incl (m - 1)
          | .gt => loop (m + 1) hi_incl
          | .eq => .some (m, fm)
