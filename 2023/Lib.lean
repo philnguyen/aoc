@@ -315,7 +315,7 @@ end Test
 -- Set
 -----------------------------------------------------------------------
 
-prefix:30 "℘" => PersistentHashSet
+prefix:70 "℘" => PersistentHashSet
 
 syntax "#{" term,* "}" : term
 macro_rules
@@ -330,6 +330,9 @@ end Test
 
 def Lean.PersistentHashSet.filter [BEq α] [Hashable α] (p : α → Bool) (s : ℘ α) : ℘ α :=
   s.fold (λ s x => if p x then s else s.erase x) s
+
+def Lean.PersistentHashSet.partition [BEq α] [Hashable α] (p : α → Bool) (s : ℘ α) : ℘ α × ℘ α :=
+  s.fold (λ ⟨t, f⟩ x => if p x then (t.insert x, f) else (t, f.insert x)) (#{}, #{})
 
 def Lean.PersistentHashSet.map [BEq α] [Hashable α] [BEq β] [Hashable β] (f : α → β) (s : ℘ α) : ℘ β :=
   s.fold (λ s x => s.insert (f x)) #{}
@@ -375,7 +378,7 @@ instance [BEq α] [Hashable α] [ToString α] : ToString (℘ α) where
 -- Map
 -----------------------------------------------------------------------
 
-infixr:30 " ⊨> " => PersistentHashMap
+infixr:34 " ⊨> " => PersistentHashMap
 
 instance : Hashable Char where
   hash c := c.toNat.toUInt64
@@ -413,6 +416,8 @@ def Nat.count_by (p : ℕ → Bool) (n : ℕ) : ℕ :=
 
 def List.tally [BEq α] [Hashable α] (xs : List α) : α ⊨> ℕ :=
   xs.foldl (λ m x => m.insert x (1 + m.findD x 0)) #[|]
+
+def Nat.lcm (a b : ℕ) : ℕ := a * b / a.gcd b
 
 section Test
   example : Nat.count_by (· % 2 == 0) 7 = 4 := rfl
