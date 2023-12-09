@@ -273,27 +273,10 @@ def List.replace_all [BEq α] (a b : α) : List α → List α
 | a₁ :: as => (if a == a₁ then b else a₁) :: replace_all a b as
 | [] => []
 
-partial -- TODO
-def List.sorted_by (prec : α → α → Bool) (xs : List α) : List α :=
-  let rec split : List α → List α × List α
-    | [] => ([], [])
-    | x :: xs => let (l, r) := split xs
-                 (x :: r, l)
-  let rec merge : List α → List α → List α
-    | x :: xs, y :: ys => if prec x y then x :: merge xs (y :: ys) else y :: merge (x :: xs) ys
-    | xs, [] => xs
-    | [], ys => ys
-  let rec loop (l : List α) : List α :=
-    match l with
-    | [] | [_] => l
-    | _ => let (l₁, l₂) := split l
-           merge (loop l₁) (loop l₂)
-  loop xs
-
-def List.sorted [Ord α] : List α → List α :=
-  List.sorted_by (match compare · · with
-                  | .lt | .eq => true
-                  | .gt => false)
+def List.sorted_by (l : List α) (prec : α → α → Bool) := (l.toArray.qsort prec).toList
+def List.sorted [Ord α] (l : List α) := l.sorted_by (match compare · · with
+                                                     | .lt | .eq => true
+                                                     | .gt => false)
 
 def List.foldl_with_index (f : β → α → ℕ → β) (acc : β) (xs : List α) : β :=
   (xs.foldl (λ | ⟨ac, i⟩, x => (f ac x i, i + 1)) (acc, 0)).fst
@@ -351,8 +334,8 @@ def Lean.PersistentHashSet.intersect [BEq α] [Hashable α] (s₁ s₂ : ℘ α)
 
 def Lean.PersistentHashSet.map_reduce [BEq α] [Hashable α] (map : α → β) (reduce : β → β → β) (init : β) : ℘ α → β :=
   fold (λ acc x => reduce acc (map x)) init
-def Lean.PersistentHashSet.sum_by  [BEq α] [Hashable α] [Add σ] [OfNat σ 0] (f : α → σ) := map_reduce f Add.add 0
-def Lean.PersistentHashSet.prod_by [BEq α] [Hashable α] [Mul π] [OfNat π 1] (f : α → π) := map_reduce f Mul.mul 1
+def Lean.PersistentHashSet.sum_by  [BEq α] [Hashable α] [Add σ] [OfNat σ 0] (f : α → σ) : ℘ α → σ := map_reduce f Add.add 0
+def Lean.PersistentHashSet.prod_by [BEq α] [Hashable α] [Mul π] [OfNat π 1] (f : α → π) : ℘ α → π := map_reduce f Mul.mul 1
 def Lean.PersistentHashSet.sum  [BEq α] [Hashable α] [Add α] [OfNat α 0] : ℘ α → α := sum_by id
 def Lean.PersistentHashSet.prod [BEq α] [Hashable α] [Mul α] [OfNat α 1] : ℘ α → α := prod_by id
 def Lean.PersistentHashSet.all [BEq α] [Hashable α] (p : α → Bool) := map_reduce p (· && ·) true
