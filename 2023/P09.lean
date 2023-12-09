@@ -1,8 +1,4 @@
 import Lib
-import Lean.Data.PersistentHashMap
-import Lean.Data.PersistentHashSet
-import Lean.Data.Parsec
-
 open Lean
 
 def List.deriv : List ℤ → List ℤ
@@ -32,16 +28,13 @@ def List.first_num (ls : List (List ℤ)) :=
 def with_extrap (extrap : List (List ℤ) → ℤ) : IO Unit := do
   let parse_line : Parsec (List ℤ) := Parsec.sep_by Parsec.int Parsec.ws
   let lines := (← stdin_lines).map parse_line.run!
-  let anses := lines.map (λ ns => (extrap ns.derivs, ns))
-  for ans in anses do
+  let anses := lines.map (extrap ·.derivs)
+  for ans in lines.zip anses do
     let (n, ns) := ans
     IO.println s!"Line {ns} --> {n}"
-  let s := anses.sum_by Prod.fst
-  IO.println s!"Sum is {s}"
+  IO.println s!"Sum is {anses.sum}"
 
 def q1 := with_extrap List.last_num
 def q2 := with_extrap List.first_num
 
 def main : IO Unit := q1
-  
-
