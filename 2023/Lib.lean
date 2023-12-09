@@ -627,7 +627,6 @@ private def Heap.mk_tree (x : α) (a b : Heap α) : Heap α :=
     then .tree (rank b + 1) x a b
     else .tree (rank a + 1) x b a
 
-partial -- TODO
 def Heap.merge [Ord α] : Heap α → Heap α → Heap α
 | h, .empty
 | .empty, h => h
@@ -635,6 +634,7 @@ def Heap.merge [Ord α] : Heap α → Heap α → Heap α
   match compare x y with
   | .lt | .eq => mk_tree x a₁ (merge b₁ h₂)
   | _ => mk_tree y a₂ (merge h₁ b₂)
+termination_by Heap.merge h₁ h₂ => [h₁, h₂]
 
 def Heap.insert [Ord α] (x : α) (h : Heap α) := merge (.tree 1 x .empty .empty) h
 
