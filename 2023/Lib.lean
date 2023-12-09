@@ -245,8 +245,8 @@ instance {α : Type u} {β : Type v} : Add (α → Option β) where
 -----------------------------------------------------------------------
 def List.map_reduce (map : α → β) (reduce : β → β → β) (init : β) : List α → β :=
   foldl (λ acc x => reduce acc (map x)) init
-def List.sum_by  [Add α] [OfNat α 0] (f : x → α) := map_reduce f Add.add 0
-def List.prod_by [Mul α] [OfNat α 1] (f : x → α) := map_reduce f Mul.mul 1
+def List.sum_by  [Add α] [OfNat α 0] (f : x → α) : List x → α := map_reduce f Add.add 0
+def List.prod_by [Mul α] [OfNat α 1] (f : x → α) : List x → α := map_reduce f Mul.mul 1
 def List.sum  [Add α] [OfNat α 0] : List α → α := sum_by id
 def List.prod [Mul α] [OfNat α 1] : List α → α := prod_by id
 
