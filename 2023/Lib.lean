@@ -378,6 +378,10 @@ def Lean.PersistentHashMap.collect [BEq α] [Hashable α] [BEq β] [Hashable β]
                                    (m : α ⊨> ℘ β) (a : α) (b : β) : α ⊨> ℘ β :=
   m.insert a ((m.findD a #{}).insert b)
 
+def Lean.PersistentHashMap.collect_list [BEq α] [Hashable α]
+                                        (m : α ⊨> List β) (a : α) (b : β) : α ⊨> List β :=
+  m.insert a (b :: m.findD a [])
+
 def Lean.PersistentHashMap.count_up [BEq α] [Hashable α]
                                     [Add n] [OfNat n 0] [OfNat n 1]
                                     (m : α ⊨> n) (a : α) : α ⊨> n :=
@@ -457,72 +461,27 @@ def Lean.Parsec.run! [Inhabited α] (comp : Parsec α) (s : String) : α := matc
 -- State search
 -----------------------------------------------------------------------
 
-structure Queue (α : Type) where
-  front : List α
-  back : List α
-deriving Repr
-
-@[simp]
- def Queue.empty : Queue α := ⟨[], []⟩
-
-@[simp]
-def Queue.insert : α → Queue α → Queue α
-| x, ⟨front, back⟩ => ⟨x :: front, back⟩
-
-@[simp]
-def Queue.next : Queue α → Option (α × Queue α)
-| ⟨front, x :: back⟩ => .some ⟨x, ⟨front, back⟩⟩
-| ⟨front, []⟩ => match front.reverse with
-                 | x :: back' => .some ⟨x, ⟨[], back'⟩⟩
-                 | [] => .none
-
-inductive StepResult s :=
-| next : List s → StepResult s
-| success : StepResult s
-
-class Scheduler (q : Type → Type) where
-  empty : q α
-  next : q α → Option (α × q α)
-  schedule : List α → q α → q α
-
-instance : Scheduler List where
-  empty := []
-  next | [] => .none
-       | x :: xs => .some (x, xs)
-  schedule := List.append
-
-instance : Scheduler Queue where
-  empty := Queue.empty
-  next := Queue.next
-  schedule xs q := xs.foldr .insert q
-
 partial
-def search (step : s → StepResult s) (start : s) [Scheduler q] [BEq s] [Hashable s] : Option s :=
-  let Cached s [BEq s] [Hashable s] := StateM (℘ s)
-  let rec go (alts : q s) : Cached s (Option s) :=
-    match Scheduler.next alts with
-    | .none => return .none
-    | .some (s, alts') =>
-      match step s with
-      | .next ss => do
-        let (ss, seen) :=
-          ss.foldl (λ | acc@(ss, seen), s =>
-                       if seen.contains s then acc else (s :: ss, seen.insert s))
-                   ([], (← get))
-        set seen
-        go (Scheduler.schedule ss alts')
-      | .success => return (.some s)
-  go (Scheduler.schedule [start] Scheduler.empty)
-    |>.run (PersistentHashSet.empty.insert start)
-    |>.fst
-
-def search_dfs [BEq s] [Hashable s] := search (q := List) (s := s)
-def search_bfs [BEq s] [Hashable s] := search (q := Queue) (s := s)
-
-section Test
-  example : ∃ q, .some (1, q) = Queue.next (.insert 3 (.insert 2 .(.insert 1 .empty)))
-    := by simp; exists ⟨[], [2, 3]⟩
-end Test
+def bfs [BEq s] [Hashable s]
+        (start : s)
+        (step : s → List s)
+        (init : α)
+        (acc : α → (s ⊨> List s) → α) : α :=
+  let rec iter  (queued : ℘ s) (res : α) (front : List s) : α :=
+    let (front', queued') :=
+      front.foldl (λ acc src =>
+                     let tgts := step src
+                     tgts.foldl (λ acc@⟨front, queued⟩ tgt =>
+                                 if queued.contains tgt then acc
+                                 else (front.collect_list src tgt, queued.insert tgt))
+                              acc)
+                  (#[|], queued)
+    if front'.size > 0 then
+      let res' := acc res front'
+      let front'' := front'.toList.foldr (λ ⟨_, ss⟩ ss' => ss ++ ss') []
+      iter queued' res' front''
+    else res
+  iter #{start} init [start]
 
 -----------------------------------------------------------------------
 -- Union find
