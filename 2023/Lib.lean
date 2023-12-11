@@ -200,7 +200,7 @@ def List.fold_sparse_grid (cell : Char → Option α)
                | .none => g)
 
 @[simp]
-def List.Stream.map_sparse_grid (cell : Char → Option α) : List String → SparseGrid α :=
+def List.map_sparse_grid (cell : Char → Option α) : List String → SparseGrid α :=
   fold_sparse_grid cell (λ m i v => m.insert i v) .empty
 
 def List.map_grid (cell : Char → α) : List String → Vec 2 α := map (·.toList.map cell)
@@ -373,6 +373,15 @@ def Lean.PersistentHashMap.update [BEq α] [Hashable α] (k : α) (f : α → β
 
 def Lean.PersistentHashMap.filter [BEq α] [Hashable α] (p : α → β → Bool) (m : α ⊨> β) : α ⊨> β :=
   m.foldl (λ m k v => if p k v then m else m.erase k) m
+
+def Lean.PersistentHashMap.collect [BEq α] [Hashable α] [BEq β] [Hashable β]
+                                   (m : α ⊨> ℘ β) (a : α) (b : β) : α ⊨> ℘ β :=
+  m.insert a ((m.findD a #{}).insert b)
+
+def Lean.PersistentHashMap.count_up [BEq α] [Hashable α]
+                                    [Add n] [OfNat n 0] [OfNat n 1]
+                                    (m : α ⊨> n) (a : α) : α ⊨> n :=
+  m.insert a (1 + m.findD a 0)
 
 declare_syntax_cat kv
 syntax term " ↦ " term : kv
