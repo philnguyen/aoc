@@ -58,6 +58,33 @@ private def Index.beq : Index n → Index n → Bool :=
   | 1 => BEq.beq
   | _ + 2 => λ ⟨i₀, i⟩ ⟨j₀, j⟩ => i₀ == j₀ && beq i j
 
+private def Fin.zero_absurd {α : Type u} (i : Fin 0) : α := by
+  have ⟨_, hi⟩ := i; have := Nat.not_lt_zero; contradiction
+
+def Index.get (idx : Index n) (i : Fin n) : ℤ :=
+  match n with
+  | 0 => Fin.zero_absurd i
+  | 1 => idx
+  | m + 2 => let (idx₀, idx') := idx
+             match i with
+             | 0 => idx₀
+             | ⟨j + 1, hj⟩ => idx'.get ⟨j, by simp_arith [Nat.lt_of_succ_lt_succ] at *; assumption⟩
+
+def Index.set (idx : Index n) (i : Fin n) (v : ℤ) : Index n :=
+  match n with
+  | 0 => Fin.zero_absurd i
+  | 1 => v
+  | m + 2 => let (idx₀, idx') := idx
+             match i with
+             | 0 => (v, idx')
+             | ⟨j + 1, hj⟩ => ⟨idx₀, idx'.set ⟨j, by simp_arith [Nat.lt_of_succ_lt_succ] at *; simp_arith [hj]⟩ v⟩
+
+def Index.compare_at : List (Fin n) → Index n → Index n → Ordering
+| [], _, _ => .eq -- arbitrary
+| i :: is, idx, jdx => match compare (idx.get i) (jdx.get i) with
+                       | .eq => compare_at is idx jdx
+                       | o => o
+
 instance : BEq (Index n) where beq := Index.beq
 
 def Vec.ref (vec : Vec n t) (i : Index n) : Option t :=
@@ -91,6 +118,9 @@ section Test
                              ]
                              (-3, 3) = .none
     := rfl
+
+  example : Index.get (n := 3) (1, 2, 3) 2 = 3 := rfl
+  example : Index.set (n := 3) (1, 2, 3) 2 42 = (1, 2, 42) := rfl
 end Test
 
 -- `Index 2` interpreted as `row × col` as opposed to `x × y`
@@ -117,6 +147,13 @@ def Index.adjacents (i : Index n) : List (Index n) :=
                adjacents'.map (i₀ + 1, ·)
   (go i).filter (· != i)
 
+def Index.manhattan_dist (i j : Index n) : ℕ := match n with
+| 0 => 0
+| 1 => (i - j).natAbs
+| _ + 2 => let ⟨i₀, i'⟩ := i
+           let ⟨j₀, j'⟩ := j
+           (i₀ - j₀).natAbs + i'.manhattan_dist j'
+
 section Test
   def origin3 : Index 3 := (0, 0, 0)
   example : origin3.straight_adjacents.length = 6 := rfl
@@ -129,6 +166,7 @@ section Test
             [-1, 1].all $ λ i₁ =>
             origin2.adjacents.contains (i₀, i₁)
     := rfl
+  example : Index.manhattan_dist (n := 3) (0, 1, 2) (3, 4, 5) = 9 := rfl
 end Test
 
 def Index.add (v₁ v₂ : Index n) : Index n :=
@@ -274,9 +312,10 @@ def List.replace_all [BEq α] (a b : α) : List α → List α
 | [] => []
 
 def List.sorted_by (l : List α) (prec : α → α → Bool) := (l.toArray.qsort prec).toList
-def List.sorted [Ord α] (l : List α) := l.sorted_by (match compare · · with
-                                                     | .lt | .eq => true
-                                                     | .gt => false)
+def List.sorted_with (l : List α) (cmp : α → α → Ordering) := l.sorted_by (match cmp · · with
+                                                                           | .lt | .eq => true
+                                                                           | .gt => false)
+def List.sorted [Ord α] (l : List α) := l.sorted_with compare
 
 def List.foldl_with_index (f : β → α → ℕ → β) (acc : β) (xs : List α) : β :=
   (xs.foldl (λ | ⟨ac, i⟩, x => (f ac x i, i + 1)) (acc, 0)).fst
@@ -347,6 +386,7 @@ infixl:70 " ∩ " => PersistentHashSet.intersect
 def List.toSet [BEq α] [Hashable α] : List α → ℘ α := foldl .insert #{}
 def Lean.PersistentHashSet.toList [BEq α] [Hashable α] (xs : ℘ α) : List α :=
   xs.fold (λ acc x => x :: acc) []
+def List.distinct [BEq α] [Hashable α] (xs : List α) : List α := xs.toSet.toList
 
 instance [BEq α] [Hashable α] : BEq (℘ α) where
   beq xs ys := xs.size == ys.size && xs.all ys.contains
