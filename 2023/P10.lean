@@ -35,23 +35,18 @@ example : connects ((109, 28), «⋆») ((109, 29), «⌟») = true := rfl
 example : connects ((109, 28), «⋆») ((108, 28), «⌟») = false := rfl
 
 -- Run bfs, returning visited positions as well as farthest distance traveled
-partial
-def bfs (m : Map) (touched : ℘ (Index 2)) (frontier : ℘ Cell) (dist : ℕ) : (ℕ × ℘ (Index 2)) :=
-  if frontier.size == 0 then (dist - 1, touched)
-  else let (touched', frontier') :=
-         frontier.fold (λ acc cell@⟨idx, _⟩ =>
-                           idx.straight_adjacents.foldl
-                             (λ acc@⟨touched, frontier⟩ idx' =>
-                                if touched.contains idx' then acc
-                                else match m.find? idx' with
-                                     | .some tile' =>
-                                       if connects cell (idx', tile')
-                                       then (touched.insert idx', frontier.insert (idx', tile'))
-                                       else acc
-                                     | .none => acc)
-                             acc)
-                        (touched, #{})
-       bfs m touched' frontier' (dist + 1)
+def walk (m : Map) (start : Cell) : ℕ × ℘ (Index 2) :=
+  bfs start
+      (λ cell@⟨idx, _⟩ =>
+         idx.straight_adjacents.filterMap (λ idx' =>
+                                             match m.find? idx' with
+                                             | .some tile' =>
+                                               let cell' := (idx', tile')
+                                               if connects cell cell' then .some cell' else .none
+                                             | .none => .none))
+      (0, #{start.fst})
+      (λ ⟨d, the_loop⟩ edges =>
+        (d + 1, edges.foldl (λ loop _ tgt => loop ∪ (tgt.toSet.map Prod.fst)) the_loop))
 
 -- Read map, returning it along with bfs result
 def map_bfs : IO (List String × Map × ℕ × ℘ (Index 2)) := do
@@ -66,7 +61,7 @@ def map_bfs : IO (List String × Map × ℕ × ℘ (Index 2)) := do
                                           | '.' => .none
                                           | c => panic s!"Nope: {c}")
   let start_index := the_map.toList |>.find? (λ ⟨_, v⟩ => v == «⋆») |>.get! |>.fst
-  return (lines, the_map, bfs the_map #{start_index} #{(start_index, «⋆»)} 0)
+  return (lines, the_map, walk the_map (start_index, «⋆»))
 
 def q1 : IO Unit := do
   let (_, _, farthest, _) ← map_bfs
