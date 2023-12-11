@@ -507,19 +507,18 @@ def bfs [BEq s] [Hashable s]
         (step : s → List s)
         (init : α)
         (acc : α → (s ⊨> List s) → α) : α :=
-  let rec iter  (queued : ℘ s) (res : α) (front : List s) : α :=
-    let (front', queued') :=
-      front.foldl (λ acc src =>
-                     let tgts := step src
-                     tgts.foldl (λ acc@⟨front, queued⟩ tgt =>
-                                 if queued.contains tgt then acc
-                                 else (front.collect_list src tgt, queued.insert tgt))
-                              acc)
-                  (#[|], queued)
+  let rec iter  (queued : ℘ s) (res : α) (front : List s) : α := Id.run $ do
+    let mut front' := #[|]
+    let mut queued := queued
+    for src in front do
+      for tgt in step src do
+        if ¬ queued.contains tgt then
+          queued ← queued.insert tgt
+          front' ← front'.collect_list src tgt
     if front'.size > 0 then
       let res' := acc res front'
       let front'' := front'.toList.foldr (λ ⟨_, ss⟩ ss' => ss ++ ss') []
-      iter queued' res' front''
+      iter queued res' front''
     else res
   iter #{start} init [start]
 
