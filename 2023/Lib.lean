@@ -427,6 +427,9 @@ def Lean.PersistentHashMap.count_up [BEq α] [Hashable α]
                                     (m : α ⊨> n) (a : α) : α ⊨> n :=
   m.insert a (1 + m.findD a 0)
 
+def Lean.PersistentHashMap.keys [BEq α] [Hashable α] (m : α ⊨> β) : List α := m.toList.map Prod.fst
+def Lean.PersistentHashMap.vals [BEq α] [Hashable α] (m : α ⊨> β) : List β := m.toList.map Prod.snd
+
 declare_syntax_cat kv
 syntax term " ↦ " term : kv
 syntax "#[|" kv,* "]" : term

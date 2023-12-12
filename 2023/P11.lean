@@ -16,21 +16,18 @@ def expand_by_dim (scale : ℕ) (dim : Fin 2) (m : Map) : Map :=
   let all_mappings := remap scale inhabited_coords
   m.map (λ idx => idx.set dim (all_mappings.find! (idx.get dim)))
 
-def dist_sum (m : Map) : ℕ :=
-  let twice_sum := Id.run $ do
-    let mut acc := 0
-    for idx in m do
-      for jdx in m do
-        if idx != jdx then
-          acc ← acc + idx.manhattan_dist jdx
-    return acc
-  twice_sum / 2
+def dist_sum (m : Map) : ℕ := Id.run $ do
+  let mut acc := 0
+  for idx in m do
+    for jdx in m do
+      if idx != jdx then
+        acc ← acc + idx.manhattan_dist jdx
+  return acc / 2
 
 def read_map : IO Map :=
   return (← stdin_lines) |>.map_sparse_grid (λ | '#' => .some ()
                                                | _ => .none)
-                         |>.toList
-                         |>.map (λ ⟨idx, _⟩ => idx) -- take keys only
+                         |>.keys
 
 def show_dist_sum (scale : ℕ) : IO Unit := do
   let m := (← read_map) |> expand_by_dim scale 0
