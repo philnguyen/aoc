@@ -18,3 +18,4 @@ lean_lib Lib
 @[default_target] lean_exe P10 where root := `P10
 @[default_target] lean_exe P11 where root := `P11
 @[default_target] lean_exe P12 where root := `P12
+@[default_target] lean_exe P13 where root := `P13
