@@ -100,6 +100,19 @@ def Vec.ref (vec : Vec n t) (i : Index n) : Option t :=
                | .none => .none
              | .negSucc _ => .none
 
+def Vec.upd [Inhabited t] (vec : Vec n t) (i : Index n) (f : t → t) : Vec n t :=
+  match n with
+  | 0 => f vec
+  | 1 => match i with
+         | .ofNat i => vec.set i (f (vec.get! i))
+         | .negSucc _ => vec
+  | _ + 2 => let (i₀, i') := i
+             match i₀ with
+             | .ofNat i₀ => match vec.get? i₀ with
+               | .some vec' => vec.set i₀ (vec'.upd i' f)
+               | .none => vec
+             | .negSucc _ => vec
+
 section Test
   example : (8 : Vec 0 ℕ).ref () = .some 8 := rfl
   example : Vec.ref (n := 1) ["zero", "one", "two"] 0 = "zero" := rfl
@@ -217,7 +230,7 @@ def List.fold_line_groups (on_line : α → String → α) (a₀ : α)
 
 @[simp]
 def List.map_line_groups (on_line : String → α) (on_group : List α → β) : List String → List β :=
-  fold_line_groups (λ as s => on_line s :: as) [] (λ b as => on_group as :: b) []
+  reverse ∘ fold_line_groups (λ as s => on_line s :: as) [] (λ b as => on_group as.reverse :: b) []
 
 @[simp]
 def List.fold_char (f : α → Index 2 → Char → α) (a₀ : α) (lines : List String) : α :=
@@ -253,6 +266,12 @@ section Test
   example : '5'.as_digit? = .some 5 := rfl
   example : '9'.as_digit? = .some 9 := rfl
   example : 'a'.as_digit? = .none := rfl
+
+  example : ["123", "234", "", "abc", "foo", "bar"].map_line_groups String.toList id =
+            [ [['1', '2', '3'], ['2', '3', '4']]
+            , [['a', 'b', 'c'], ['f', 'o', 'o'], ['b', 'a', 'r']]
+            ] :=
+    rfl
 end Test
 
 section Test
@@ -303,6 +322,7 @@ def List.lastD (xs : List α) (x : α) : α := xs.reverse.headD x
 def List.reduce (op : α → α → α) : List α → Option α
 | [] => .none
 | x :: xs => .some (xs.foldl op x)
+def List.reduce! [Inhabited α] (op : α → α → α) : List α → α := Option.get! ∘ reduce op
 
 def List.min [Min α] (xs : List α) := xs.reduce Min.min
 def List.max [Max α] (xs : List α) := xs.reduce Max.max
@@ -387,6 +407,7 @@ def List.toSet [BEq α] [Hashable α] : List α → ℘ α := foldl .insert #{}
 def Lean.PersistentHashSet.toList [BEq α] [Hashable α] (xs : ℘ α) : List α :=
   xs.fold (λ acc x => x :: acc) []
 def List.distinct [BEq α] [Hashable α] (xs : List α) : List α := xs.toSet.toList
+def Lean.PersistentHashSet.some_elem! [BEq α] [Hashable α] [Inhabited α] (xs : ℘ α) : α := xs.toList.head!
 
 instance [BEq α] [Hashable α] : BEq (℘ α) where
   beq xs ys := xs.size == ys.size && xs.all ys.contains
@@ -396,6 +417,10 @@ instance [BEq α] [Hashable α] : Hashable (℘ α) where
 
 instance [BEq α] [Hashable α] [ToString α] : ToString (℘ α) where
   toString xs := "{" ++ xs.fold (λ acc x => acc ++ (if acc.length == 0 then "" else ", ") ++ s!"{x}") "" ++ "}"
+
+instance [Hashable l] [Hashable r] : Hashable (l ⊕ r) where
+  hash | .inl l => hash l
+       | .inr r => hash r * 31
 
 -----------------------------------------------------------------------
 -- Map
