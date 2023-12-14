@@ -699,23 +699,22 @@ def iter : ℕ → (α → α) → (α → α)
 | 0, _, x => x
 | n + 1, f, x => iter n f (f x)
 
--- Return `fⁱᵗᵉʳˢ(x)`, knowing `f` has a period that's much smaller than `iters`
-def cached_iter [BEq α] [Hashable α] (iters : ℕ) (f : α → α) (x : α) : α := Id.run $ do
+-- Return `fⁿ x`, knowing `f` has a period that's much smaller than `iters`
+def cached_iter [BEq α] [Hashable α] (n : ℕ) (f : α → α) (x : α) : α := Id.run $ do
   let mut distincts : α ⊨> ℕ := #[|]
   let mut x := x
   let mut cycle_end := 0
   let mut cycle_length := 0
-  for i in [0:iters] do
+  for i in [0 : n] do
     match distincts.find? x with
     | .some i₀ => cycle_length := i - i₀
                   cycle_end := i
                   break
     | .none => distincts := distincts.insert x i
     x := f x
-  if cycle_length > 0
-    then let remaining_iters := (iters - cycle_end) % cycle_length
-         for _ in [0:remaining_iters] do
-           x := f x
+  if cycle_length > 0 then
+    for _ in [0 : (n - cycle_end) % cycle_length] do
+      x := f x
   return x
 
 section Test
