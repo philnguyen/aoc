@@ -177,8 +177,17 @@ def Index.pointwise (op : ℤ → ℤ → ℤ) (v₁ v₂ : Index n) : Index n :
 
 def Index.add : Index n → Index n → Index n := pointwise (· + ·)
 def Index.sub : Index n → Index n → Index n := pointwise (· - ·)
+def Index.mul : Index n → Index n → Index n := pointwise (· * ·)
 instance : Add (Index n) where add := Index.add
 instance : Sub (Index n) where sub := Index.sub
+instance : Mul (Index n) where mul := Index.mul
+
+def Index.sum (i : Index n) : ℤ := match n with
+| 0 => 0
+| 1 => i
+| _ + 2 => let (i₀, i') := i; i₀ + i'.sum
+
+def Index.dot (i j : Index n) : ℤ := (i * j).sum
 
 -- It's `map`, but due to type-aliasing, name it `pointwise` to avoid confusion with `List.map`
 def Vec.pointwise (f : α → β) (v : Vec n α) : Vec n β := match n with
