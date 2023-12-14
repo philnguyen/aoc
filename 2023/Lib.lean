@@ -700,22 +700,21 @@ def iter : ℕ → (α → α) → (α → α)
 | n + 1, f, x => iter n f (f x)
 
 -- Return `fⁿ x`, knowing `f` has a period that's much smaller than `iters`
-def cached_iter [BEq α] [Hashable α] (n : ℕ) (f : α → α) (x : α) : α := Id.run $ do
+def cached_iter [BEq α] [Hashable α] [Inhabited α] (n : ℕ) (f : α → α) (x : α) : α := Id.run $ do
   let mut distincts : α ⊨> ℕ := #[|]
   let mut x := x
-  let mut cycle_end := 0
+  let mut cycle_start := 0
   let mut cycle_length := 0
+  let mut xs := []
   for i in [0 : n] do
     match distincts.find? x with
     | .some i₀ => cycle_length := i - i₀
-                  cycle_end := i
+                  cycle_start := i₀
                   break
     | .none => distincts := distincts.insert x i
+               xs := x :: xs
     x := f x
-  if cycle_length > 0 then
-    for _ in [0 : (n - cycle_end) % cycle_length] do
-      x := f x
-  return x
+  return xs.reverse.get! ((n - cycle_start) % cycle_length + cycle_start)
 
 section Test
   example : iter 0 f x = x := rfl
