@@ -696,7 +696,7 @@ def fix [BEq α] (f : α → α) (x : α) : α :=
   if x' == x then x else fix f x'
 
 def iter : ℕ → (α → α) → (α → α)
-| 0, _, x => x
+| 0    , _, x => x
 | n + 1, f, x => iter n f (f x)
 
 -- Return `fⁿ x`, knowing `f` has a period that's much smaller than `iters`
