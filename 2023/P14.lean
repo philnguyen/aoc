@@ -11,27 +11,25 @@ def read_map : IO Map := do
   let sharps := m.keys.filter (m.find? · == .some true ) |>.toSet
   return (rounds, sharps, lines.length, lines.head!.length)
 
-def move (dim : Fin 2) (target : ℤ) (m : Map) : Map :=
+def move (dir : Index 2) (m : Map) : Map :=
   let (rounds, sharps, rows, cols) := m
-  let nudge (pos : Index 2) : Index 2 :=
-    let x := pos.get dim
-    pos.set dim (if x > target then x - 1 else x + 1)
+  let in_bound : Index 2 → Bool | ⟨r, c⟩ => 0 ≤ r ∧ r < rows ∧ 0 ≤ c ∧ c < cols
   let rounds' := rounds |>.toList
-                        |>.sorted_by (λ pos₁ pos₂ => (target - pos₁.get dim).natAbs < (target - pos₂.get dim).natAbs)
+                        |>.sorted_by (λ pos₁ pos₂ => (Index.sub pos₂ pos₁).dot dir < 0)
                         |>.foldl (λ rounds' pos => Id.run $ do
                                     let mut pos := pos
-                                    let mut pos' := nudge pos
-                                    while pos.get dim != target ∧ ¬ rounds'.contains pos' ∧ ¬ sharps.contains pos' do
+                                    let mut pos' := Index.add pos dir
+                                    while in_bound pos' ∧ ¬ rounds'.contains pos' ∧ ¬ sharps.contains pos' do
                                       pos := pos'
-                                      pos' := nudge pos'
+                                      pos' := Index.add pos' dir
                                     rounds'.insert pos)
                                  ∅
   (rounds', sharps, rows, cols)
 
-def move_north : Map → Map                  := move 0 0
-def move_west  : Map → Map                  := move 1 0
-def move_south : Map → Map | m@⟨_, _, r, _⟩ => move 0 (r - 1) m
-def move_east  : Map → Map | m@⟨_, _, _, c⟩ => move 1 (c - 1) m
+def move_north : Map → Map := move (-1,  0)
+def move_west  : Map → Map := move ( 0, -1)
+def move_south : Map → Map := move ( 1,  0)
+def move_east  : Map → Map := move ( 0,  1)
 def cycle := move_east ∘ move_south ∘ move_west ∘ move_north
 
 def Map.weight : Map → ℤ
