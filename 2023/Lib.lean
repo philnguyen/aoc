@@ -167,6 +167,30 @@ def Index.manhattan_dist (i j : Index n) : ℕ := match n with
            let ⟨j₀, j'⟩ := j
            (i₀ - j₀).natAbs + i'.manhattan_dist j'
 
+def Index.pointwise (op : ℤ → ℤ → ℤ) (v₁ v₂ : Index n) : Index n :=
+  match n with
+  | 0 => ()
+  | 1 => op v₁ v₂
+  | _ + 2 => let ⟨n₁, v₁'⟩ := v₁
+             let ⟨n₂, v₂'⟩ := v₂
+             ⟨op n₁ n₂, pointwise op v₁' v₂'⟩
+
+def Index.add : Index n → Index n → Index n := pointwise (· + ·)
+def Index.sub : Index n → Index n → Index n := pointwise (· - ·)
+instance : Add (Index n) where add := Index.add
+instance : Sub (Index n) where sub := Index.sub
+
+-- It's `map`, but due to type-aliasing, name it `pointwise` to avoid confusion with `List.map`
+def Vec.pointwise (f : α → β) (v : Vec n α) : Vec n β := match n with
+| 0     => f v
+| _ + 1 => v.map (pointwise f) 
+
+def Vec.pointwise2 (f : α₁ → α₂ → β) (v₁ : Vec n α₁) (v₂ : Vec n α₂) : Vec n β := match n with
+| 0 => f v₁ v₂
+| _ + 1 => List.zipWith (pointwise2 f) v₁ v₂
+
+abbrev SparseGrid := PersistentHashMap (Index 2)
+
 section Test
   def origin3 : Index 3 := (0, 0, 0)
   example : origin3.straight_adjacents.length = 6 := rfl
@@ -180,28 +204,12 @@ section Test
             origin2.adjacents.contains (i₀, i₁)
     := rfl
   example : Index.manhattan_dist (n := 3) (0, 1, 2) (3, 4, 5) = 9 := rfl
+
+  example : Index.add (n := 3) (1, 2, 3) (4, 5, 6) = (5, 7, 9) := rfl
+
+  example : Vec.pointwise (n := 2) toString [[1, 2, 3], [2, 3, 4]] = [["1", "2", "3"], ["2", "3", "4"]] := rfl
+  example : Vec.pointwise2 (n := 1) (· * ·) [2, 3, 4] [5, 6, 7] = [10, 18, 28] := rfl
 end Test
-
-def Index.add (v₁ v₂ : Index n) : Index n :=
-  match n with
-  | 0 => ()
-  | 1 => v₁ + v₂
-  | _ + 2 => let ⟨n₁, v₁'⟩ := v₁
-             let ⟨n₂, v₂'⟩ := v₂
-             ⟨n₁ + n₂, v₁'.add v₂'⟩
-
-def Index.sub (v₁ v₂ : Index n) : Index n :=
-  match n with
-  | 0 => ()
-  | 1 => v₁ - v₂
-  | _ + 2 => let ⟨n₁, v₁'⟩ := v₁
-             let ⟨n₂, v₂'⟩ := v₂
-             ⟨n₁ - n₂, v₁'.sub v₂'⟩
-
-instance : Add (Index n) where add := Index.add
-instance : Sub (Index n) where sub := Index.sub
-
-abbrev SparseGrid := PersistentHashMap (Index 2)
 
 -----------------------------------------------------------------------
 -- IO and strings
