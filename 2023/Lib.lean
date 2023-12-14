@@ -685,3 +685,41 @@ def binary_search [Ord α] (f : ℕ → α) (target : α) (lo_incl hi_incl : ℕ
          | .gt => loop (m + 1) hi_incl
          | .eq => .some (m, fm)
   loop lo_incl hi_incl
+
+-----------------------------------------------------------------------
+-- Function compositions
+-----------------------------------------------------------------------
+
+partial
+def fix [BEq α] (f : α → α) (x : α) : α :=
+  let x' := f x
+  if x' == x then x else fix f x'
+
+def iter : ℕ → (α → α) → (α → α)
+| 0, _, x => x
+| n + 1, f, x => iter n f (f x)
+
+-- Return `fⁱᵗᵉʳˢ(x)`, knowing `f` has a period that's much smaller than `iters`
+def cached_iter [BEq α] [Hashable α] (iters : ℕ) (f : α → α) (x : α) : α := Id.run $ do
+  let mut distincts : α ⊨> ℕ := #[|]
+  let mut x := x
+  let mut cycle_end := 0
+  let mut cycle_length := 0
+  for i in [0:iters] do
+    match distincts.find? x with
+    | .some i₀ => cycle_length := i - i₀
+                  cycle_end := i
+                  break
+    | .none => distincts := distincts.insert x i
+    x := f x
+  if cycle_length > 0
+    then let remaining_iters := (iters - cycle_end) % cycle_length
+         for _ in [0:remaining_iters] do
+           x := f x
+  return x
+
+section Test
+  example : iter 0 f x = x := rfl
+  example : iter 1 f x = f x := rfl
+  example : iter 3 f x = f (f (f x)) := rfl
+end Test
