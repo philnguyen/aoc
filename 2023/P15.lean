@@ -45,4 +45,4 @@ def q2 (commands : List String) : ℕ :=
 def main : IO Unit := do
   let commands := (← stdin_lines).head!.splitOn ","
   IO.println s!"q1: {q1 commands}"
-  IO.println s!"q2 : {q2 commands}"
+  IO.println s!"q2: {q2 commands}"
