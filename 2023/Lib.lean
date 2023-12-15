@@ -268,6 +268,8 @@ def List.map_sparse_grid (cell : Char → Option α) : List String → SparseGri
 
 def List.indices_where (p : Char → Bool) : List String → List (Index 2) :=
   fold_char (λ acc i c => if p c then i :: acc else acc) []
+def List.indices_of (c : Char) : List String → List (Index 2) :=
+  indices_where (· == c)
 
 def List.map_grid (cell : Char → α) : List String → Vec 2 α := map (·.toList.map cell)
 
@@ -696,7 +698,7 @@ def binary_search [Ord α] (f : ℕ → α) (target : α) (lo_incl hi_incl : ℕ
   loop lo_incl hi_incl
 
 -----------------------------------------------------------------------
--- Function compositions
+-- Iteration
 -----------------------------------------------------------------------
 
 partial
@@ -715,7 +717,7 @@ def cached_iter [BEq α] [Hashable α] [Inhabited α] (n : ℕ) (f : α → α) 
     | i@(i' + 1) =>
       match distincts.find? x with
       | .some i₀ => let cycle_len := i₀ - i
-                    history.get! (cycle_len - i % cycle_len)
+                    history.get! (cycle_len - i % cycle_len - 1)
       | .none => loop (distincts.insert x i) (x :: history) (f x) i'
   loop #[|] [] x n
 

@@ -28,8 +28,8 @@ def weight : Map → ℤ
 
 def read_map : IO Map := do
   let lines ← stdin_lines
-  let rounds := lines |>.indices_where (. == 'O') |>.toSet
-  let sharps := lines |>.indices_where (. == '#') |>.toSet
+  let rounds := lines |>.indices_of 'O' |>.toSet
+  let sharps := lines |>.indices_of '#' |>.toSet
   return (rounds, sharps, lines.length, lines.head!.length)
 
 def main := do
