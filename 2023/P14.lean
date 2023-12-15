@@ -9,10 +9,10 @@ def move (dir : Index 2) : Map → Map
                         |>.sorted_by (λ pos₁ pos₂ => (pos₂.sub pos₁).dot dir < 0)
                         |>.foldl (λ rounds' pos => Id.run $ do
                                     let mut pos := pos
-                                    let mut pos' := Index.add pos dir
+                                    let mut pos' := pos.add dir
                                     while in_bound pos' ∧ ¬ rounds'.contains pos' ∧ ¬ sharps.contains pos' do
                                       pos := pos'
-                                      pos' := Index.add pos' dir
+                                      pos' := pos'.add dir
                                     rounds'.insert pos)
                                  ∅
   (rounds', sharps, rows, cols)
@@ -28,11 +28,8 @@ def weight : Map → ℤ
 
 def read_map : IO Map := do
   let lines ← stdin_lines
-  let m := lines.map_sparse_grid (λ | 'O' => false
-                                    | '#' => true
-                                    | _ => .none)
-  let rounds := m.keys.filter (m.find? · == .some false) |>.toSet
-  let sharps := m.keys.filter (m.find? · == .some true ) |>.toSet
+  let rounds := lines |>.indices_where (. == 'O') |>.toSet
+  let sharps := lines |>.indices_where (. == '#') |>.toSet
   return (rounds, sharps, lines.length, lines.head!.length)
 
 def main := do
