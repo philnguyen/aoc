@@ -234,7 +234,6 @@ def stdin_lines : IO (List String) := IO.getStdin >>= IO.FS.Stream.lines
 def List.map_splitted_lines (f : List String → α) (lines : List String) (sep : String := " ") : List α :=
   lines.map (λ l => f (l.splitOn sep))
 
-@[simp]
 def List.fold_line_groups (on_line : α → String → α) (a₀ : α)
                           (on_group : β → α → β    ) (b₀ : β)
                           (lines : List String)
@@ -245,11 +244,9 @@ def List.fold_line_groups (on_line : α → String → α) (a₀ : α)
                             (a₀, b₀)
   on_group b a
 
-@[simp]
 def List.map_line_groups (on_line : String → α) (on_group : List α → β) : List String → List β :=
   reverse ∘ fold_line_groups (λ as s => on_line s :: as) [] (λ b as => on_group as.reverse :: b) []
 
-@[simp]
 def List.fold_char (f : α → Index 2 → Char → α) (a₀ : α) (lines : List String) : α :=
   let (a, _) := lines.foldl
                   (λ (a, row) l =>
@@ -258,7 +255,6 @@ def List.fold_char (f : α → Index 2 → Char → α) (a₀ : α) (lines : Lis
                   (a₀, 0)
   a
 
-@[simp]
 def List.fold_sparse_grid (cell : Char → Option α)
                           (acc : g → Index 2 → α → g)
                           : g → List String → g :=
@@ -267,9 +263,11 @@ def List.fold_sparse_grid (cell : Char → Option α)
                | .some a => acc g i a
                | .none => g)
 
-@[simp]
 def List.map_sparse_grid (cell : Char → Option α) : List String → SparseGrid α :=
   fold_sparse_grid cell (λ m i v => m.insert i v) .empty
+
+def List.indices_where (p : Char → Bool) : List String → List (Index 2) :=
+  fold_char (λ acc i c => if p c then i :: acc else acc) []
 
 def List.map_grid (cell : Char → α) : List String → Vec 2 α := map (·.toList.map cell)
 
@@ -289,6 +287,8 @@ section Test
             , [['a', 'b', 'c'], ['f', 'o', 'o'], ['b', 'a', 'r']]
             ] :=
     rfl
+
+  example : ["O#..", "..#O"].indices_where (· == '#') = [(1, 2), (0, 1)] := rfl
 end Test
 
 section Test
@@ -708,22 +708,16 @@ def iter : ℕ → (α → α) → (α → α)
 | 0    , _, x => x
 | n + 1, f, x => iter n f (f x)
 
--- Return `fⁿ x`, knowing `f` has a period that's much smaller than `iters`
-def cached_iter [BEq α] [Hashable α] [Inhabited α] (n : ℕ) (f : α → α) (x : α) : α := Id.run $ do
-  let mut distincts : α ⊨> ℕ := #[|]
-  let mut x := x
-  let mut cycle_start := 0
-  let mut cycle_length := 0
-  let mut xs := []
-  for i in [0 : n] do
-    match distincts.find? x with
-    | .some i₀ => cycle_length := i - i₀
-                  cycle_start := i₀
-                  break
-    | .none => distincts := distincts.insert x i
-               xs := x :: xs
-    x := f x
-  return xs.reverse.get! ((n - cycle_start) % cycle_length + cycle_start)
+-- Return `fⁿ x`, knowing `f` has a period that's much smaller than `n`
+def cached_iter [BEq α] [Hashable α] [Inhabited α] (n : ℕ) (f : α → α) (x : α) : α :=
+  let rec loop (distincts : α ⊨> ℕ) (history : List α) (x : α) : ℕ → α
+    | 0 => x
+    | i@(i' + 1) =>
+      match distincts.find? x with
+      | .some i₀ => let cycle_len := i₀ - i
+                    history.get! (cycle_len - i % cycle_len)
+      | .none => loop (distincts.insert x i) (x :: history) (f x) i'
+  loop #[|] [] x n
 
 section Test
   example : iter 0 f x = x := rfl
