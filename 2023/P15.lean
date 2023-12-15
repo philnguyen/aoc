@@ -16,15 +16,14 @@ def Elem.has_label : String → Elem → Bool | s, ⟨box, _⟩ => box == s
 
 def q1 : List String → ℕ := List.sum_by HASH
 
-def q2 (segments : List String) : ℕ :=
+def q2 (commands : List String) : ℕ :=
   let interp (st : State) : Cmd → State
   | .move elem@(label, _) =>
     let box := HASH label
-    let list := st.findD box []
-    let list' := match list.find? (Elem.has_label label) with
-                 | .some elem₀ => list.replace elem₀ elem
-                 | .none => elem :: list
-    st.insert box list'
+    let elems := st.findD box []
+    st.insert box $ match elems.find? (Elem.has_label label) with
+                    | .some elem₀ => elems.replace elem₀ elem
+                    | .none => elem :: elems
   | .remove label =>
     st.update (HASH label) (λ _ elems => elems.filter (¬ ·.has_label label)) []
 
@@ -35,14 +34,15 @@ def q2 (segments : List String) : ℕ :=
     st |>.toList
        |>.sum_by (λ ⟨box, elems⟩ => sum_elems (box + 1) 1 elems.reverse)
 
-  let commands := segments |>.map (λ s => match s.splitOn "=" with
-                                          | [box, val] => Cmd.move (box, val.toNat!)
-                                          | _ => match s.splitOn "-" with
-                                                 | [val, ""] => Cmd.remove val
-                                                 | s => panic! s!"Invalid: {s}")
-  sum (commands.foldl interp #[|])
+  commands |>.map (λ s => match s.splitOn "=" with
+                          | [box, val] => Cmd.move (box, val.toNat!)
+                          | _ => match s.splitOn "-" with
+                                 | [val, ""] => Cmd.remove val
+                                 | s => panic! s!"Invalid: {s}")
+           |>.foldl interp #[|]
+           |> sum
 
 def main : IO Unit := do
-  let segments := (← stdin_lines).head!.splitOn ","
-  IO.println s!"q1: {q1 segments}"
-  IO.println s!"q2 : {q2 segments}"
+  let commands := (← stdin_lines).head!.splitOn ","
+  IO.println s!"q1: {q1 commands}"
+  IO.println s!"q2 : {q2 commands}"
