@@ -1,7 +1,6 @@
 import Lib
-open Lean
 
-def HASH (s : String) : ℕ := s.toList.foldl (λ acc c => (acc + c.toNat) * 17 % 256) 0
+def String.HASH : String → ℕ := foldl (λ acc c => (acc + c.toNat) * 17 % 256) 0
 
 abbrev Elem := String × ℕ
 
@@ -14,18 +13,18 @@ abbrev State := ℕ ⊨> List Elem
 
 def Elem.has_label : String → Elem → Bool | s, ⟨box, _⟩ => box == s
 
-def q1 : List String → ℕ := List.sum_by HASH
+def q1 : List String → ℕ := List.sum_by String.HASH
 
 def q2 (commands : List String) : ℕ :=
   let interp (st : State) : Cmd → State
   | .move elem@(label, _) =>
-    let box := HASH label
+    let box := label.HASH
     let elems := st.findD box []
     st.insert box $ match elems.find? (Elem.has_label label) with
                     | .some elem₀ => elems.replace elem₀ elem
                     | .none => elem :: elems
   | .remove label =>
-    st.update (HASH label) (λ _ elems => elems.filter (¬ ·.has_label label)) []
+    st.update label.HASH (λ _ elems => elems.filter (¬ ·.has_label label)) []
 
   let sum (st : State) : ℕ :=
     let rec sum_elems (box : ℕ) (ith : ℕ) : List Elem → ℕ
