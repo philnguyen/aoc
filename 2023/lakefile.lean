@@ -21,3 +21,5 @@ lean_lib Lib
 @[default_target] lean_exe P13 where root := `P13
 @[default_target] lean_exe P14 where root := `P14
 @[default_target] lean_exe P15 where root := `P15
+-- TODO 16, 17, 18
+@[default_target] lean_exe P19 where root := `P19
